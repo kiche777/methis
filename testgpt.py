@@ -63,8 +63,8 @@ class Worker(QThread):
         self.finished.emit("Agent finished executing.\n")
         
     async def run_agent(self, prompt):
-        agent = Agent(task=prompt, llm=llm)
-        await agent.run(max_steps=12)
+        self.agent = Agent(task=prompt, llm=llm)
+        await self.agent.run(max_steps=12)
 
 # Custom splitter handle to paint handle area green when a panel is collapsed.
 class CustomSplitterHandle(QSplitterHandle):
@@ -240,27 +240,27 @@ class MainWindow(QMainWindow):
         self.worker.start()
         
     def handleCancel(self):
-        if self.worker and self.worker.isRunning():
+        if self.worker and self.worker.isRunning() and hasattr(self.worker, 'agent'):
             # self.worker.terminate()
             # self.worker.wait()
-            self.agent.stop()
+            self.worker.agent.stop()
             self.updateOutput("Execution cancelled.\n")
         else:
             self.updateOutput("No execution running.\n")
             
             
     def handlePause(self):
-        if self.worker and self.worker.isRunning():
+        if self.worker and self.worker.isRunning() and hasattr(self.worker, 'agent'):
             # self.worker.terminate()
-            self.agent.pause()
+            self.worker.agent.pause()
             self.updateOutput("Execution paused.\n")
         else:
             self.updateOutput("No execution running.\n")
             
     def handleResume(self):
-        if self.worker and not self.worker.isRunning():
+        if self.worker and hasattr(self.worker, 'agent'):
             # self.worker.start()
-            self.agent.resume()
+            self.worker.agent.resume()
             self.updateOutput("Execution resumed.\n")
         else:
             self.updateOutput("No execution to resume.\n")
