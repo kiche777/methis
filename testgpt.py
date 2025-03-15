@@ -56,7 +56,10 @@ class Worker(QThread):
                     """Start the agent in a separate thread"""
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
-                    loop.run_until_complete(self.run_agent(self.prompt))
+                    try:
+                        loop.run_until_complete(self.run_agent(self.prompt))
+                    finally:
+                        loop.close()
                 start()
     
             except Exception as e:
