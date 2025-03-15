@@ -7,7 +7,7 @@ import os
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QLineEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QSplitter, QSplitterHandle
+    QTextEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QSplitter, QSplitterHandle
 )
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QPainter
@@ -121,7 +121,9 @@ class MainWindow(QMainWindow):
         leftLayout.addWidget(self.outputText)
         
         promptLayout = QHBoxLayout()
-        self.inputLine = QLineEdit()
+        self.inputLine = QTextEdit()
+        self.inputLine.setFixedHeight(60)  # Approximately three rows tall
+        self.inputLine.setLineWrapMode(QTextEdit.WidgetWidth)  # Enable word wrapping
         self.modelCombo = QComboBox()
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o"])
         self.sendButton = QPushButton("Send")
@@ -204,14 +206,14 @@ class MainWindow(QMainWindow):
         entryLayout = QHBoxLayout()
         historyEntry.setLayout(entryLayout)
         checkbox = QCheckBox()
-        checkbox.setChecked(True)  # Checkboxes are checked by default
+        checkbox.setChecked(checked)  # Use passed argument for checkbox state
         promptDisplay = QTextEdit()
         promptDisplay.setPlainText(prompt)
         promptDisplay.setReadOnly(True)
         promptDisplay.setFixedHeight(50)
 
         # When the promptDisplay is double clicked, copy its text into the inputLine.
-        def onDoubleClick(event):
+        def onDoubleClick(_):
             self.inputLine.setText(promptDisplay.toPlainText())
         promptDisplay.mouseDoubleClickEvent = onDoubleClick
 
@@ -251,7 +253,7 @@ class MainWindow(QMainWindow):
                 print("Error loading history:", e)
         
     def handleSend(self):
-        prompt = self.inputLine.text().strip()
+        prompt = self.inputLine.toPlainText().strip()
         if not prompt:
             return
         
