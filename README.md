@@ -1,2 +1,2 @@
-# QA-methis
-Client to interact with Browser-Use to serve as a QA Tool to store useful prompts to combine and create full tests for repeated execution.
+# methis
+Client to interact with Browser-Use to serve as a Tool to develop agent prompts and save them to be combined to create repeatable automation flows.
