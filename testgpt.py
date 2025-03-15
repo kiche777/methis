@@ -211,6 +211,7 @@ class MainWindow(QMainWindow):
         promptDisplay.setPlainText(prompt)
         promptDisplay.setReadOnly(True)
         promptDisplay.setFixedHeight(50)
+        promptDisplay.setAlignment(Qt.AlignTop)  # Align text to the top
 
         # When the promptDisplay is double clicked, copy its text into the inputLine.
         def onDoubleClick(_):
@@ -219,7 +220,17 @@ class MainWindow(QMainWindow):
 
         entryLayout.addWidget(checkbox)
         entryLayout.addWidget(promptDisplay)
+        self.historyLayout.setAlignment(Qt.AlignTop)
+        # Append the new entry to the bottom of the history entries.
         self.historyLayout.addWidget(historyEntry)
+
+        record = {
+            'widget': historyEntry,
+            'checkbox': checkbox,
+            'promptDisplay': promptDisplay
+        }
+        self.history_entries.append(record)
+        return record
         
         record = {
             'widget': historyEntry,
