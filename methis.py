@@ -20,12 +20,14 @@ from PyQt5.QtWidgets import QLabel
 def get_browser(headless):
     config = BrowserConfig(
         headless=headless,
-        disable_security=False
+        disable_security=False,
+        # cdp_url='http://localhost:9123'        
+        # Using Chrome Pro
+        # chrome_instance_path="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
     )
     return Browser(config=config)
 
 browser = get_browser(False)
-
 
 # Initialize the LLM (global)
 llm = ChatOpenAI(
