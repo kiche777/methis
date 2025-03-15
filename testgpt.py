@@ -47,7 +47,16 @@ class Worker(QThread):
         stream = EmittingStream(self.output)
         with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(stream):
             try:
-                asyncio.run(self.run_agent(self.prompt))
+                # asyncio.run(self.run_agent(self.prompt))
+                
+                # Replace the above line with the following to run the agent in thread
+                def start():
+                    """Start the agent in a separate thread"""
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(self.run_agent(self.prompt))
+                start()
+    
             except Exception as e:
                 self.output.emit("Execution cancelled.\n")
         # Emit finished signal with a final message.
@@ -106,13 +115,6 @@ class MainWindow(QMainWindow):
         self.outputText = QTextEdit()
         self.outputText.setReadOnly(True)
         leftLayout.addWidget(self.outputText)
-        splitter.addWidget(leftWidget)
-        
-        # Set the initial sizes so that the prompt history (right panel)
-        # starts with a fixed default width.
-        splitter.setSizes([800, 400])
-        # Prevent the right panel (index 1) from being collapsible.
-        splitter.setCollapsible(1, False)
         
         promptLayout = QHBoxLayout()
         self.inputLine = QLineEdit()
@@ -124,12 +126,26 @@ class MainWindow(QMainWindow):
         promptLayout.addWidget(self.modelCombo)
         promptLayout.addWidget(self.sendButton)
         
-        # Add Cancel button to the right of Send.
+        self.pauseButton = QPushButton("Pause")
+        self.pauseButton.clicked.connect(self.handlePause)
+        promptLayout.addWidget(self.pauseButton)
+        
+        self.resumeButton = QPushButton("Resume")
+        self.resumeButton.clicked.connect(self.handleResume)
+        promptLayout.addWidget(self.resumeButton)
+        
         self.cancelButton = QPushButton("Cancel")
         self.cancelButton.clicked.connect(self.handleCancel)
         promptLayout.addWidget(self.cancelButton)
         
         leftLayout.addLayout(promptLayout)
+        splitter.addWidget(leftWidget)
+        
+        # Set the initial sizes so that the prompt history (right panel)
+        # starts with a fixed default width.
+        splitter.setSizes([800, 400])
+        # Prevent the right panel (index 1) from being collapsible.
+        splitter.setCollapsible(1, False)
         
         # RIGHT: History panel
         rightWidget = QWidget()
@@ -225,11 +241,30 @@ class MainWindow(QMainWindow):
         
     def handleCancel(self):
         if self.worker and self.worker.isRunning():
-            self.worker.terminate()
-            self.worker.wait()
+            # self.worker.terminate()
+            # self.worker.wait()
+            self.agent.stop()
             self.updateOutput("Execution cancelled.\n")
         else:
             self.updateOutput("No execution running.\n")
+            
+            
+    def handlePause(self):
+        if self.worker and self.worker.isRunning():
+            # self.worker.terminate()
+            self.agent.pause()
+            self.updateOutput("Execution paused.\n")
+        else:
+            self.updateOutput("No execution running.\n")
+            
+    def handleResume(self):
+        if self.worker and not self.worker.isRunning():
+            # self.worker.start()
+            self.agent.resume()
+            self.updateOutput("Execution resumed.\n")
+        else:
+            self.updateOutput("No execution to resume.\n")
+                       
     
     def updateOutput(self, text):
         # Append received text to the outputText.
