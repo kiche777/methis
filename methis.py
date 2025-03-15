@@ -17,7 +17,7 @@ from langchain_openai import ChatOpenAI
 from browser_use import Agent, Browser, BrowserConfig
 from PyQt5.QtWidgets import QLabel
 
-def get_browser(headless, private=True, connect=False, port="9123"):
+def get_browser(headless, profile=False, connect=False, port="9123"):
     if connect:
         cdp_url = f"http://localhost:{port}"
         config = BrowserConfig(
@@ -25,7 +25,7 @@ def get_browser(headless, private=True, connect=False, port="9123"):
             disable_security=False,
             cdp_url=cdp_url
         )
-    elif not private:
+    elif profile:
         chrome_instance_path = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
         config = BrowserConfig(
             headless=headless,
@@ -180,9 +180,9 @@ class MainWindow(QMainWindow):
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o"])
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
-        self.privateCheckBox = QCheckBox("Private")
-        self.privateCheckBox.setChecked(True)
-        self.connectExistingCheckBox = QCheckBox("Connect to Browser")
+        self.profileCheckBox = QCheckBox("Use Browser Profile")
+        self.profileCheckBox.setChecked(False)
+        self.connectExistingCheckBox = QCheckBox("Connect to Browser Instance")
         self.portLabel = QLabel("Port")
         self.portField = QLineEdit()
         self.portField.setText("9123")
@@ -191,7 +191,45 @@ class MainWindow(QMainWindow):
         
         advancedLayout.addWidget(self.modelCombo)
         advancedLayout.addWidget(self.headlessCheckBox)
-        advancedLayout.addWidget(self.privateCheckBox)
+        advancedLayout.addWidget(self.profileCheckBox)
+
+        # Define slot functions for checkbox logic
+        def on_profile_toggled(checked):
+            if checked:
+                # When Profile is checked, uncheck Connect to Browser and Headless.
+                self.connectExistingCheckBox.blockSignals(True)
+                self.headlessCheckBox.blockSignals(True)
+                self.connectExistingCheckBox.setChecked(False)
+                self.headlessCheckBox.setChecked(False)
+                self.connectExistingCheckBox.blockSignals(False)
+                self.headlessCheckBox.blockSignals(False)
+
+        def on_connect_toggled(checked):
+            if checked:
+            # When Connect to Browser is checked, uncheck Profile and Headless.
+                self.profileCheckBox.blockSignals(True)
+                self.headlessCheckBox.blockSignals(True)
+                self.profileCheckBox.setChecked(False)
+                self.headlessCheckBox.setChecked(False)
+                self.profileCheckBox.blockSignals(False)
+                self.headlessCheckBox.blockSignals(False)
+
+        def on_headless_toggled(checked):
+            if checked:
+            # Headless can only be checked if Profile is enabled and Connect is disabled.
+                if not self.profileCheckBox.isChecked():
+                    self.profileCheckBox.blockSignals(True)
+                    self.profileCheckBox.setChecked(True)
+                    self.profileCheckBox.blockSignals(False)
+                if self.connectExistingCheckBox.isChecked():
+                    self.connectExistingCheckBox.blockSignals(True)
+                    self.connectExistingCheckBox.setChecked(False)
+                    self.connectExistingCheckBox.blockSignals(False)
+
+        # Connect signals
+        self.profileCheckBox.toggled.connect(on_profile_toggled)
+        self.connectExistingCheckBox.toggled.connect(on_connect_toggled)
+        self.headlessCheckBox.toggled.connect(on_headless_toggled)
         advancedLayout.addWidget(self.connectExistingCheckBox)
         advancedLayout.addWidget(self.portField)
         
@@ -323,7 +361,7 @@ class MainWindow(QMainWindow):
         
         selected_model = self.modelCombo.currentText()
         global llm, browser
-        browser = get_browser(self.headlessCheckBox.isChecked(), self.privateCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())
+        browser = get_browser(self.headlessCheckBox.isChecked(), self.profileCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())
         llm = ChatOpenAI(
             model=selected_model,
             temperature=0.7
