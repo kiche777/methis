@@ -14,12 +14,21 @@ from PyQt5.QtGui import QPainter
 
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
-from browser_use import Agent
+from browser_use import Agent, Browser, BrowserConfig
+
+config = BrowserConfig(
+    headless=False,
+    disable_security=False
+)
+
+browser = Browser(config=config)
+
 
 # Initialize the LLM (global)
 llm = ChatOpenAI(
     model="gpt-4o-mini",
     temperature=0.7,
+    browser=browser
 )
 
 # A custom stream that sends text via a signal.
@@ -68,7 +77,7 @@ class Worker(QThread):
         self.finished.emit("Agent finished executing.\n")
         
     async def run_agent(self, prompt):
-        self.agent = Agent(task=prompt, llm=llm)
+        self.agent = Agent(task=prompt, llm=llm, browser=browser)
         await self.agent.run(max_steps=12)
 
 # Custom splitter handle to paint handle area green when a panel is collapsed.
@@ -143,9 +152,9 @@ class MainWindow(QMainWindow):
         self.resumeButton.clicked.connect(self.handleResume)
         promptLayout.addWidget(self.resumeButton)
         
-        self.cancelButton = QPushButton("Cancel")
-        self.cancelButton.clicked.connect(self.handleCancel)
-        promptLayout.addWidget(self.cancelButton)
+        self.stopButton = QPushButton("Stop")
+        self.stopButton.clicked.connect(self.handleCancel)
+        promptLayout.addWidget(self.stopButton)
         
         leftLayout.addLayout(promptLayout)
         splitter.addWidget(leftWidget)
