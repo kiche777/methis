@@ -104,7 +104,7 @@ class CustomSplitter(QSplitter):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("QA Methis")
+        self.setWindowTitle("Methis")
         self.resize(1200, 600)
         self.history_entries = []  # Runtime history entries (widgets)
         self.historyFile = "history.json"  # Persistent file path
@@ -199,17 +199,17 @@ class MainWindow(QMainWindow):
         self.enableAllButton = QPushButton("Enable All")
         
         # Redirect console output to the outputText widget.
-        class ConsoleOutput(io.StringIO):
-            def __init__(self, callback):
-                super().__init__()
-                self.callback = callback
-            def write(self, text):
-                if text:
-                    self.callback(text)
-            def flush(self):
-                pass
-        sys.stdout = ConsoleOutput(self.updateOutput)
-        sys.stderr = ConsoleOutput(self.updateOutput)
+        # class ConsoleOutput(io.StringIO):
+        #     def __init__(self, callback):
+        #         super().__init__()
+        #         self.callback = callback
+        #     def write(self, text):
+        #         if text:
+        #             self.callback(text)
+        #     def flush(self):
+        #         pass
+        # sys.stdout = ConsoleOutput(self.updateOutput)
+        # sys.stderr = ConsoleOutput(self.updateOutput)
         
         self.saveButton.clicked.connect(self.saveHistory)
         self.clearButton.clicked.connect(self.clearUnchecked)
@@ -300,6 +300,7 @@ class MainWindow(QMainWindow):
         
         # Launch the agent code in a worker thread and connect its signals.
         self.worker = Worker(prompt)
+        # This is responsible for outputting messages in real time to outputText.
         self.worker.output.connect(self.updateOutput)
         self.worker.finished.connect(self.displayFinished)
         self.worker.start()
