@@ -137,6 +137,7 @@ class MainWindow(QMainWindow):
         self.inputLine = QTextEdit()
         self.inputLine.setFixedHeight(60)  # Approximately three rows tall
         self.inputLine.setLineWrapMode(QTextEdit.WidgetWidth)  # Enable word wrapping
+        self.inputLine.setPlaceholderText("Enter your prompt here...")
         self.modelCombo = QComboBox()
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o"])
         self.headlessCheckBox = QCheckBox("Headless")
