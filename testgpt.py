@@ -212,25 +212,29 @@ class MainWindow(QMainWindow):
         historyEntry = QWidget()
         entryLayout = QHBoxLayout()
         historyEntry.setLayout(entryLayout)
-        
         checkbox = QCheckBox()
         checkbox.setChecked(True)  # Checkboxes are checked by default
         promptDisplay = QTextEdit()
         promptDisplay.setPlainText(prompt)
         promptDisplay.setReadOnly(True)
         promptDisplay.setFixedHeight(50)  # Adjust as needed
-        
+
+        # When the promptDisplay is double clicked, copy its text into the inputLine.
+        def onDoubleClick(event):
+            self.inputLine.setText(promptDisplay.toPlainText())
+        promptDisplay.mouseDoubleClickEvent = onDoubleClick
+
         entryLayout.addWidget(checkbox)
         entryLayout.addWidget(promptDisplay)
         self.historyLayout.addWidget(historyEntry)
-        
+
         # Save the history entry for later processing.
         self.history_entries.append({
             'widget': historyEntry,
             'checkbox': checkbox,
             'promptDisplay': promptDisplay
         })
-        
+
         self.inputLine.clear()
         
         # Launch the agent code in a worker thread and connect its signals.
