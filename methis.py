@@ -16,19 +16,20 @@ from PyQt5.QtGui import QPainter
 from langchain_openai import ChatOpenAI
 from browser_use import Agent, Browser, BrowserConfig
 
-config = BrowserConfig(
-    headless=False,
-    disable_security=False
-)
+def get_browser(headless):
+    config = BrowserConfig(
+        headless=headless,
+        disable_security=False
+    )
+    return Browser(config=config)
 
-browser = Browser(config=config)
+browser = get_browser(False)
 
 
 # Initialize the LLM (global)
 llm = ChatOpenAI(
     model="gpt-4o-mini",
-    temperature=0.7,
-    browser=browser
+    temperature=0.7
 )
 
 # A custom stream that sends text via a signal.
@@ -138,11 +139,15 @@ class MainWindow(QMainWindow):
         self.inputLine.setLineWrapMode(QTextEdit.WidgetWidth)  # Enable word wrapping
         self.modelCombo = QComboBox()
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o"])
+        self.headlessCheckBox = QCheckBox("Headless")
+        self.headlessCheckBox.setChecked(False)
         self.sendButton = QPushButton("Send")
         self.sendButton.clicked.connect(self.handleSend)
         promptLayout.addWidget(self.inputLine)
         promptLayout.addWidget(self.modelCombo)
+        promptLayout.addWidget(self.headlessCheckBox)
         promptLayout.addWidget(self.sendButton)
+
         
         self.pauseButton = QPushButton("Pause")
         self.pauseButton.clicked.connect(self.handlePause)
@@ -163,7 +168,8 @@ class MainWindow(QMainWindow):
         # starts with a fixed default width.
         splitter.setSizes([800, 400])
         # Prevent the right panel (index 1) from being collapsible.
-        splitter.setCollapsible(1, False)
+        # Remove setCollapsible call to avoid out of range error
+        # splitter.setCollapsible(1, False)
         
         # RIGHT: History panel
         rightWidget = QWidget()
@@ -273,10 +279,11 @@ class MainWindow(QMainWindow):
             return
         
         selected_model = self.modelCombo.currentText()
-        global llm
+        global llm, browser
+        browser = get_browser(self.headlessCheckBox.isChecked())
         llm = ChatOpenAI(
             model=selected_model,
-            temperature=0.7,
+            temperature=0.7
         )
         
         self.addHistoryEntry(prompt, checked=True)
