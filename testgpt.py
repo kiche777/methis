@@ -5,7 +5,7 @@ import contextlib
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QLineEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog
+    QTextEdit, QLineEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox
 )
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -51,7 +51,7 @@ class Worker(QThread):
         
     async def run_agent(self, prompt):
         agent = Agent(task=prompt, llm=llm)
-        await agent.run(max_steps=30)
+        await agent.run(max_steps=12)
 
 # Main window UI
 class MainWindow(QMainWindow):
@@ -79,9 +79,12 @@ class MainWindow(QMainWindow):
         
         promptLayout = QHBoxLayout()
         self.inputLine = QLineEdit()
+        self.modelCombo = QComboBox()
+        self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o"])
         self.sendButton = QPushButton("Send")
         self.sendButton.clicked.connect(self.handleSend)
         promptLayout.addWidget(self.inputLine)
+        promptLayout.addWidget(self.modelCombo)
         promptLayout.addWidget(self.sendButton)
         leftLayout.addLayout(promptLayout)
         
@@ -121,16 +124,25 @@ class MainWindow(QMainWindow):
         if not prompt:
             return
         
-        # Create a history entry with a check box and a read-only text field.
+        # Update the global llm with the selected model from the combo box.
+        selected_model = self.modelCombo.currentText()
+        global llm
+        llm = ChatOpenAI(
+            model=selected_model,
+            temperature=0.7,
+        )
+        
+        # Create a history entry with a check box and a read-only text field (using QTextEdit for wrapping).
         historyEntry = QWidget()
         entryLayout = QHBoxLayout()
         historyEntry.setLayout(entryLayout)
         
         checkbox = QCheckBox()
         checkbox.setChecked(True)  # Checkboxes are checked by default
-        promptDisplay = QLineEdit()
-        promptDisplay.setText(prompt)
+        promptDisplay = QTextEdit()
+        promptDisplay.setPlainText(prompt)
         promptDisplay.setReadOnly(True)
+        promptDisplay.setFixedHeight(50)  # Adjust as needed
         
         entryLayout.addWidget(checkbox)
         entryLayout.addWidget(promptDisplay)
@@ -167,7 +179,8 @@ class MainWindow(QMainWindow):
                 with open(filename, "w", encoding="utf-8") as f:
                     for entry in self.history_entries:
                         if entry['checkbox'].isChecked():
-                            f.write(entry['promptDisplay'].text() + "\n")
+                            # Get the text from the QTextEdit
+                            f.write(entry['promptDisplay'].toPlainText() + "\n")
             except Exception as e:
                 print("Error saving history:", e)
                 
