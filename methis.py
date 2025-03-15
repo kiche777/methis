@@ -15,6 +15,7 @@ from PyQt5.QtGui import QPainter
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
 from browser_use import Agent, Browser, BrowserConfig
+from PyQt5.QtWidgets import QLabel
 
 def get_browser(headless):
     config = BrowserConfig(
@@ -128,6 +129,8 @@ class MainWindow(QMainWindow):
         leftWidget.setMinimumWidth(300)
         leftWidget.setMaximumWidth(1200)
         leftLayout = QVBoxLayout(leftWidget)
+        self.outputLabel = QLabel("Output")
+        leftLayout.addWidget(self.outputLabel)
         
         self.outputText = QTextEdit()
         self.outputText.setReadOnly(True)
@@ -176,6 +179,10 @@ class MainWindow(QMainWindow):
         rightWidget = QWidget()
         rightLayout = QVBoxLayout(rightWidget)
         
+        # Add a label at the top for the history
+        historyLabel = QLabel("Prompt History")
+        rightLayout.addWidget(historyLabel)
+        
         self.historyWidget = QWidget()
         self.historyLayout = QVBoxLayout(self.historyWidget)
         self.historyWidget.setLayout(self.historyLayout)
@@ -184,7 +191,6 @@ class MainWindow(QMainWindow):
         self.historyScroll.setWidgetResizable(True)
         self.historyScroll.setWidget(self.historyWidget)
         rightLayout.addWidget(self.historyScroll)
-        
         # Buttons for Save, Clear, Clear All and Enable All Checkboxes.
         buttonLayout = QHBoxLayout()
         self.saveButton = QPushButton("Save")
