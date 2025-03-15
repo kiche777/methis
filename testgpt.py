@@ -234,14 +234,6 @@ class MainWindow(QMainWindow):
         }
         self.history_entries.append(record)
         return record
-        
-        record = {
-            'widget': historyEntry,
-            'checkbox': checkbox,
-            'promptDisplay': promptDisplay
-        }
-        self.history_entries.append(record)
-        return record
 
     def updatePersistedHistory(self):
         records = []
