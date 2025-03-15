@@ -45,7 +45,10 @@ class Worker(QThread):
         # Redirect both stdout and stderr so all console output is piped to the text area.
         stream = EmittingStream(self.output)
         with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(stream):
-            asyncio.run(self.run_agent(self.prompt))
+            try:
+                asyncio.run(self.run_agent(self.prompt))
+            except Exception as e:
+                self.output.emit("Execution cancelled.\n")
         # Emit finished signal with a final message.
         self.finished.emit("Agent finished executing.\n")
         
@@ -60,6 +63,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("QA Methis")
         self.resize(1200, 600)
         self.history_entries = []  # Stores dicts of history entries
+        self.worker = None
         self.initUI()
         
     def initUI(self):
@@ -86,6 +90,12 @@ class MainWindow(QMainWindow):
         promptLayout.addWidget(self.inputLine)
         promptLayout.addWidget(self.modelCombo)
         promptLayout.addWidget(self.sendButton)
+        
+        # Add Cancel button to the right of Send.
+        self.cancelButton = QPushButton("Cancel")
+        self.cancelButton.clicked.connect(self.handleCancel)
+        promptLayout.addWidget(self.cancelButton)
+        
         leftLayout.addLayout(promptLayout)
         
         # RIGHT: History panel
@@ -101,12 +111,25 @@ class MainWindow(QMainWindow):
         self.historyScroll.setWidget(self.historyWidget)
         rightLayout.addWidget(self.historyScroll)
         
-        # Buttons for Save, Clear (unchecked), Clear All Checkboxes and Enable All Checkboxes.
+        # Buttons for Save, Clear, Clear All and Enable All Checkboxes.
         buttonLayout = QHBoxLayout()
         self.saveButton = QPushButton("Save")
         self.clearButton = QPushButton("Clear")
         self.clearAllButton = QPushButton("Clear All")
         self.enableAllButton = QPushButton("Enable All")
+        
+        # Redirect standard output and error to the outputText widget.
+        class ConsoleOutput(io.StringIO):
+            def __init__(self, callback):
+                super().__init__()
+                self.callback = callback
+            def write(self, text):
+                if text:
+                    self.callback(text)
+            def flush(self):
+                pass
+        sys.stdout = ConsoleOutput(self.updateOutput)
+        sys.stderr = ConsoleOutput(self.updateOutput)
         
         self.saveButton.clicked.connect(self.saveHistory)
         self.clearButton.clicked.connect(self.clearUnchecked)
@@ -132,7 +155,7 @@ class MainWindow(QMainWindow):
             temperature=0.7,
         )
         
-        # Create a history entry with a check box and a read-only text field (using QTextEdit for wrapping).
+        # Create a history entry with a check box and a read-only text field.
         historyEntry = QWidget()
         entryLayout = QHBoxLayout()
         historyEntry.setLayout(entryLayout)
@@ -163,12 +186,21 @@ class MainWindow(QMainWindow):
         self.worker.finished.connect(self.displayFinished)
         self.worker.start()
         
+    def handleCancel(self):
+        if self.worker and self.worker.isRunning():
+            self.worker.terminate()
+            self.worker.wait()
+            self.updateOutput("Execution cancelled.\n")
+        else:
+            self.updateOutput("No execution running.\n")
+    
     def updateOutput(self, text):
-        # Append received text to the outputText
+        # Append received text to the outputText.
         self.outputText.append(text)
         
     def displayFinished(self, result):
         self.outputText.append(result)
+        self.worker = None
         
     def saveHistory(self):
         filename, _ = QFileDialog.getSaveFileName(
@@ -179,7 +211,7 @@ class MainWindow(QMainWindow):
                 with open(filename, "w", encoding="utf-8") as f:
                     for entry in self.history_entries:
                         if entry['checkbox'].isChecked():
-                            # Get the text from the QTextEdit
+                            # Get the text from the QTextEdit.
                             f.write(entry['promptDisplay'].toPlainText() + "\n")
             except Exception as e:
                 print("Error saving history:", e)
