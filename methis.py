@@ -14,6 +14,7 @@ from PyQt5.QtGui import QPainter
 
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from browser_use import Agent, Browser, BrowserConfig
 from PyQt5.QtWidgets import QLabel
 
@@ -177,7 +178,7 @@ class MainWindow(QMainWindow):
         # Row 2: Advanced Settings
         advancedLayout = QHBoxLayout()
         self.modelCombo = QComboBox()
-        self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o"])
+        self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
         self.profileCheckBox = QCheckBox("Use Browser Profile")
@@ -360,13 +361,20 @@ class MainWindow(QMainWindow):
             return
         
         selected_model = self.modelCombo.currentText()
+
         global llm, browser
-        browser = get_browser(self.headlessCheckBox.isChecked(), self.profileCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())
-        llm = ChatOpenAI(
-            model=selected_model,
-            temperature=0.7
-        )
-        
+        browser = get_browser(self.headlessCheckBox.isChecked(), self.profileCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())        
+        if selected_model != "ollama":
+            llm = ChatOpenAI(
+                model=selected_model,
+                temperature=0.7
+            )
+        else:
+            llm=ChatOllama(
+                model="gemma3:12b",
+                num_ctx=32000
+            )    
+            
         self.addHistoryEntry(prompt, checked=True)
         self.updatePersistedHistory()
         
