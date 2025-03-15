@@ -7,7 +7,7 @@ import os
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QSplitter, QSplitterHandle
+    QTextEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QLineEdit, QSplitter, QSplitterHandle
 )
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QPainter
@@ -138,36 +138,58 @@ class MainWindow(QMainWindow):
         self.outputText.setReadOnly(True)
         leftLayout.addWidget(self.outputText)
         
-        promptLayout = QHBoxLayout()
+        # Row 1: Input Line and Control buttons
+        inputButtonLayout = QHBoxLayout()
         self.inputLine = QTextEdit()
         self.inputLine.setFixedHeight(60)  # Approximately three rows tall
         self.inputLine.setLineWrapMode(QTextEdit.WidgetWidth)  # Enable word wrapping
         self.inputLine.setPlaceholderText("Enter your prompt here...")
+        
+        self.sendButton = QPushButton("Send")
+        self.sendButton.clicked.connect(self.handleSend)
+        self.pauseButton = QPushButton("Pause")
+        self.pauseButton.clicked.connect(self.handlePause)
+        self.resumeButton = QPushButton("Resume")
+        self.resumeButton.clicked.connect(self.handleResume)
+        self.stopButton = QPushButton("Stop")
+        self.stopButton.clicked.connect(self.handleCancel)
+        
+        inputButtonLayout.addWidget(self.inputLine)
+        inputButtonLayout.addWidget(self.sendButton)
+        inputButtonLayout.addWidget(self.pauseButton)
+        inputButtonLayout.addWidget(self.resumeButton)
+        inputButtonLayout.addWidget(self.stopButton)
+        
+        leftLayout.addLayout(inputButtonLayout)
+        
+        # Row 2: Advanced Settings
+        advancedLayout = QHBoxLayout()
         self.modelCombo = QComboBox()
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o"])
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
-        self.sendButton = QPushButton("Send")
-        self.sendButton.clicked.connect(self.handleSend)
-        promptLayout.addWidget(self.inputLine)
-        promptLayout.addWidget(self.modelCombo)
-        promptLayout.addWidget(self.headlessCheckBox)
-        promptLayout.addWidget(self.sendButton)
-
+        self.privateCheckBox = QCheckBox("Private")
+        self.privateCheckBox.setChecked(True)
+        self.connectExistingCheckBox = QCheckBox("Connect to Browser")
+        self.portLabel = QLabel("Port")
+        self.portField = QLineEdit()
+        self.portField.setText("9123")
+        self.portField.setMaxLength(5)
+        self.portField.setFixedWidth(60)
         
-        self.pauseButton = QPushButton("Pause")
-        self.pauseButton.clicked.connect(self.handlePause)
-        promptLayout.addWidget(self.pauseButton)
+        advancedLayout.addWidget(self.modelCombo)
+        advancedLayout.addWidget(self.headlessCheckBox)
+        advancedLayout.addWidget(self.privateCheckBox)
+        advancedLayout.addWidget(self.connectExistingCheckBox)
+        advancedLayout.addWidget(self.portField)
         
-        self.resumeButton = QPushButton("Resume")
-        self.resumeButton.clicked.connect(self.handleResume)
-        promptLayout.addWidget(self.resumeButton)
+        advancedContainer = QVBoxLayout()
+        advancedLabel = QLabel("Advanced Settings")
+        advancedContainer.addWidget(advancedLabel)
+        advancedContainer.addLayout(advancedLayout)
         
-        self.stopButton = QPushButton("Stop")
-        self.stopButton.clicked.connect(self.handleCancel)
-        promptLayout.addWidget(self.stopButton)
+        leftLayout.addLayout(advancedContainer)
         
-        leftLayout.addLayout(promptLayout)
         splitter.addWidget(leftWidget)
         
         # Set the initial sizes so that the prompt history (right panel)
