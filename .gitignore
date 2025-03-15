@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Misc project files
+history.json
+*.txt
+
 # C extensions
 *.so
 
