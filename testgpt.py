@@ -5,9 +5,9 @@ import contextlib
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QLineEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox
+    QTextEdit, QLineEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QSplitter
 )
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, Qt
 
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
@@ -70,16 +70,30 @@ class MainWindow(QMainWindow):
         centralWidget = QWidget()
         self.setCentralWidget(centralWidget)
         
-        mainLayout = QHBoxLayout()
+        mainLayout = QVBoxLayout()
         centralWidget.setLayout(mainLayout)
         
-        # LEFT: Output area and prompt input
-        leftLayout = QVBoxLayout()
-        mainLayout.addLayout(leftLayout, 3)
+        # Wrap the left and right panels in a QSplitter
+        splitter = QSplitter(Qt.Horizontal)
+        mainLayout.addWidget(splitter)
+        
+        # LEFT: Main output and prompt input
+        leftWidget = QWidget()
+        # Prevent the left panel from being collapsed by setting a minimum (and optional maximum) width.
+        leftWidget.setMinimumWidth(300)
+        leftWidget.setMaximumWidth(1200)
+        leftLayout = QVBoxLayout(leftWidget)
         
         self.outputText = QTextEdit()
         self.outputText.setReadOnly(True)
         leftLayout.addWidget(self.outputText)
+        splitter.addWidget(leftWidget)
+        
+        # Set the initial sizes so that the prompt history (right panel)
+        # starts with a fixed default width.
+        splitter.setSizes([800, 400])
+        # Prevent the right panel (index 1) from being collapsible.
+        splitter.setCollapsible(1, False)
         
         promptLayout = QHBoxLayout()
         self.inputLine = QLineEdit()
@@ -99,11 +113,11 @@ class MainWindow(QMainWindow):
         leftLayout.addLayout(promptLayout)
         
         # RIGHT: History panel
-        rightLayout = QVBoxLayout()
-        mainLayout.addLayout(rightLayout, 1)
+        rightWidget = QWidget()
+        rightLayout = QVBoxLayout(rightWidget)
         
         self.historyWidget = QWidget()
-        self.historyLayout = QVBoxLayout()
+        self.historyLayout = QVBoxLayout(self.historyWidget)
         self.historyWidget.setLayout(self.historyLayout)
         
         self.historyScroll = QScrollArea()
@@ -141,6 +155,10 @@ class MainWindow(QMainWindow):
         buttonLayout.addWidget(self.clearAllButton)
         buttonLayout.addWidget(self.enableAllButton)
         rightLayout.addLayout(buttonLayout)
+        
+        splitter.addWidget(rightWidget)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
         
     def handleSend(self):
         prompt = self.inputLine.text().strip()
