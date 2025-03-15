@@ -5,9 +5,10 @@ import contextlib
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QLineEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QSplitter
+    QTextEdit, QLineEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QSplitter, QSplitterHandle
 )
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtGui import QPainter
 
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
@@ -56,6 +57,24 @@ class Worker(QThread):
         agent = Agent(task=prompt, llm=llm)
         await agent.run(max_steps=12)
 
+# Custom splitter handle to paint handle area green when a panel is collapsed.
+class CustomSplitterHandle(QSplitterHandle):
+    def paintEvent(self, event):
+        # Get current sizes of the widgets in the splitter.
+        sizes = self.splitter().sizes()
+        # Threshold to decide if a panel is collapsed.
+        threshold = 30
+        if any(s <= threshold for s in sizes):
+            painter = QPainter(self)
+            painter.fillRect(self.rect(), Qt.green)
+        else:
+            super().paintEvent(event)
+
+# Custom splitter that uses the CustomSplitterHandle.
+class CustomSplitter(QSplitter):
+    def createHandle(self):
+        return CustomSplitterHandle(self.orientation(), self)
+
 # Main window UI
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -73,8 +92,8 @@ class MainWindow(QMainWindow):
         mainLayout = QVBoxLayout()
         centralWidget.setLayout(mainLayout)
         
-        # Wrap the left and right panels in a QSplitter
-        splitter = QSplitter(Qt.Horizontal)
+        # Use CustomSplitter instead of QSplitter.
+        splitter = CustomSplitter(Qt.Horizontal)
         mainLayout.addWidget(splitter)
         
         # LEFT: Main output and prompt input
