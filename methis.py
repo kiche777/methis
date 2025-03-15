@@ -17,6 +17,7 @@ from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from browser_use import Agent, Browser, BrowserConfig
 from PyQt5.QtWidgets import QLabel
+from PyQt5.QtCore import QSettings
 
 def get_browser(headless, profile=False, connect=False, port="9123"):
     if connect:
@@ -177,10 +178,17 @@ class MainWindow(QMainWindow):
         
         # Row 2: Advanced Settings
         advancedLayout = QHBoxLayout()
+        
         self.modelCombo = QComboBox()
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
+        # Save selection for next app load (convinience)
+        settings = QSettings("kiche777", "Methis_App")
+        saved_index = settings.value("selected_model_index", 0, int)
+        self.modelCombo.setCurrentIndex(saved_index)
+        self.modelCombo.currentIndexChanged.connect(lambda index: settings.setValue("selected_model_index", index))
+        
         self.profileCheckBox = QCheckBox("Use Browser Profile")
         self.profileCheckBox.setChecked(False)
         self.connectExistingCheckBox = QCheckBox("Connect to Browser Instance")
@@ -371,8 +379,9 @@ class MainWindow(QMainWindow):
             )
         else:
             llm=ChatOllama(
-                model="gemma3:12b",
-                num_ctx=32000
+                model="gwen2.5:14b",
+                temperature=0.7,
+                num_predict=32000
             )    
             
         self.addHistoryEntry(prompt, checked=True)
