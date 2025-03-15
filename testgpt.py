@@ -2,6 +2,8 @@ import sys
 import asyncio
 import io
 import contextlib
+import json
+import os
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -90,9 +92,11 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("QA Methis")
         self.resize(1200, 600)
-        self.history_entries = []  # Stores dicts of history entries
+        self.history_entries = []  # Runtime history entries (widgets)
+        self.historyFile = "history.json"  # Persistent file path
         self.worker = None
         self.initUI()
+        self.loadPersistedHistory()
         
     def initUI(self):
         centralWidget = QWidget()
@@ -167,7 +171,7 @@ class MainWindow(QMainWindow):
         self.clearAllButton = QPushButton("Clear All")
         self.enableAllButton = QPushButton("Enable All")
         
-        # Redirect standard output and error to the outputText widget.
+        # Redirect console output to the outputText widget.
         class ConsoleOutput(io.StringIO):
             def __init__(self, callback):
                 super().__init__()
@@ -195,20 +199,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
         
-    def handleSend(self):
-        prompt = self.inputLine.text().strip()
-        if not prompt:
-            return
-        
-        # Update the global llm with the selected model from the combo box.
-        selected_model = self.modelCombo.currentText()
-        global llm
-        llm = ChatOpenAI(
-            model=selected_model,
-            temperature=0.7,
-        )
-        
-        # Create a history entry with a check box and a read-only text field.
+    def addHistoryEntry(self, prompt, checked=True):
         historyEntry = QWidget()
         entryLayout = QHBoxLayout()
         historyEntry.setLayout(entryLayout)
@@ -217,7 +208,7 @@ class MainWindow(QMainWindow):
         promptDisplay = QTextEdit()
         promptDisplay.setPlainText(prompt)
         promptDisplay.setReadOnly(True)
-        promptDisplay.setFixedHeight(50)  # Adjust as needed
+        promptDisplay.setFixedHeight(50)
 
         # When the promptDisplay is double clicked, copy its text into the inputLine.
         def onDoubleClick(event):
@@ -227,14 +218,53 @@ class MainWindow(QMainWindow):
         entryLayout.addWidget(checkbox)
         entryLayout.addWidget(promptDisplay)
         self.historyLayout.addWidget(historyEntry)
-
-        # Save the history entry for later processing.
-        self.history_entries.append({
+        
+        record = {
             'widget': historyEntry,
             'checkbox': checkbox,
             'promptDisplay': promptDisplay
-        })
+        }
+        self.history_entries.append(record)
+        return record
 
+    def updatePersistedHistory(self):
+        records = []
+        for entry in self.history_entries:
+            records.append({
+                "prompt": entry['promptDisplay'].toPlainText(),
+                "checked": entry['checkbox'].isChecked()
+            })
+        try:
+            with open(self.historyFile, "w", encoding="utf-8") as f:
+                json.dump(records, f, indent=2)
+        except Exception as e:
+            print("Error writing history:", e)
+        
+    def loadPersistedHistory(self):
+        if os.path.exists(self.historyFile):
+            try:
+                with open(self.historyFile, "r", encoding="utf-8") as f:
+                    records = json.load(f)
+                for rec in records:
+                    self.addHistoryEntry(rec.get("prompt", ""), rec.get("checked", True))
+            except Exception as e:
+                print("Error loading history:", e)
+        
+    def handleSend(self):
+        prompt = self.inputLine.text().strip()
+        if not prompt:
+            return
+        
+        selected_model = self.modelCombo.currentText()
+        global llm
+        llm = ChatOpenAI(
+            model=selected_model,
+            temperature=0.7,
+        )
+        
+        self.addHistoryEntry(prompt, checked=True)
+        self.updatePersistedHistory()
+        
         self.inputLine.clear()
         
         # Launch the agent code in a worker thread and connect its signals.
@@ -245,17 +275,13 @@ class MainWindow(QMainWindow):
         
     def handleCancel(self):
         if self.worker and self.worker.isRunning() and hasattr(self.worker, 'agent'):
-            # self.worker.terminate()
-            # self.worker.wait()
             self.worker.agent.stop()
             self.updateOutput("Execution cancelled.\n")
         else:
             self.updateOutput("No execution running.\n")
             
-            
     def handlePause(self):
         if self.worker and self.worker.isRunning() and hasattr(self.worker, 'agent'):
-            # self.worker.terminate()
             self.worker.agent.pause()
             self.updateOutput("Execution paused.\n")
         else:
@@ -263,13 +289,11 @@ class MainWindow(QMainWindow):
             
     def handleResume(self):
         if self.worker and hasattr(self.worker, 'agent'):
-            # self.worker.start()
             self.worker.agent.resume()
             self.updateOutput("Execution resumed.\n")
         else:
             self.updateOutput("No execution to resume.\n")
                        
-    
     def updateOutput(self, text):
         # Append received text to the outputText.
         self.outputText.append(text)
@@ -301,16 +325,19 @@ class MainWindow(QMainWindow):
             else:
                 remaining_entries.append(entry)
         self.history_entries = remaining_entries
+        self.updatePersistedHistory()
         
     def clearAllCheckboxes(self):
         # Uncheck all history entry checkboxes.
         for entry in self.history_entries:
             entry['checkbox'].setChecked(False)
+        self.updatePersistedHistory()
             
     def enableAllCheckboxes(self):
         # Check all history entry checkboxes.
         for entry in self.history_entries:
             entry['checkbox'].setChecked(True)
+        self.updatePersistedHistory()
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)
