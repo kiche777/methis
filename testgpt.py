@@ -42,12 +42,11 @@ class Worker(QThread):
         self.prompt = prompt
         
     def run(self):
-        # Instead of capturing by returning at the end,
-        # redirect stdout to our EmittingStream to emit text.
+        # Redirect both stdout and stderr so all console output is piped to the text area.
         stream = EmittingStream(self.output)
-        with contextlib.redirect_stdout(stream):
+        with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(stream):
             asyncio.run(self.run_agent(self.prompt))
-        # Once done, you can emit finished with a final message.
+        # Emit finished signal with a final message.
         self.finished.emit("Agent finished executing.\n")
         
     async def run_agent(self, prompt):
