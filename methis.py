@@ -17,17 +17,29 @@ from langchain_openai import ChatOpenAI
 from browser_use import Agent, Browser, BrowserConfig
 from PyQt5.QtWidgets import QLabel
 
-def get_browser(headless):
-    config = BrowserConfig(
-        headless=headless,
-        disable_security=False,
-        # cdp_url='http://localhost:9123'        
-        # Using Chrome Pro
-        # chrome_instance_path="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
-    )
+def get_browser(headless, private=True, connect=False, port="9123"):
+    if connect:
+        cdp_url = f"http://localhost:{port}"
+        config = BrowserConfig(
+            headless=headless,
+            disable_security=False,
+            cdp_url=cdp_url
+        )
+    elif not private:
+        chrome_instance_path = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+        config = BrowserConfig(
+            headless=headless,
+            disable_security=False,
+            chrome_instance_path=chrome_instance_path
+        )
+    else:
+        config = BrowserConfig(
+            headless=headless,
+            disable_security=False
+        )
     return Browser(config=config)
 
-browser = get_browser(False)
+browser = get_browser(False, True, False, "9123")
 
 # Initialize the LLM (global)
 llm = ChatOpenAI(
@@ -311,7 +323,7 @@ class MainWindow(QMainWindow):
         
         selected_model = self.modelCombo.currentText()
         global llm, browser
-        browser = get_browser(self.headlessCheckBox.isChecked())
+        browser = get_browser(self.headlessCheckBox.isChecked(), self.privateCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())
         llm = ChatOpenAI(
             model=selected_model,
             temperature=0.7
