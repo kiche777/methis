@@ -89,8 +89,17 @@ class Worker(QThread):
                     thoughts = None
                     errors = None
                     try:
+                        # Display a loading overlay in the outputText box via the output signal.
+                        self.output.emit(
+                            "<div style='position: absolute; z-index: 100; top: 0; left: 0; width: 100%; height: 100%; "
+                            "background-color: rgba(0, 0, 0, 0.5); color: white; font-size: 24px; display: flex; "
+                            "align-items: center; justify-content: center;'>Agent Task Running...</div>"
+                        )
                         history = loop.run_until_complete(self.run_agent(self.prompt))
-                
+                        
+                        # Clear the loading overlay by emitting an empty (or hidden) div.
+                        self.output.emit("<div style='display:none;'></div>")
+                        
                         errors = history.errors()
                         if errors:
                             error_output = '<br>'.join(str(e) for e in errors)
