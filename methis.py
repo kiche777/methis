@@ -83,9 +83,33 @@ class Worker(QThread):
                     """Start the agent in a separate thread"""
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
+                    history = None
+                    output_str = ""
+                    actions = None
+                    thoughts = None
+                    errors = None
                     try:
-                        loop.run_until_complete(self.run_agent(self.prompt))
+                        history = loop.run_until_complete(self.run_agent(self.prompt))
+                
+                        final = history.final_result()
+                        self.output.emit("DEBUG: Final History = " + str(final))
+                        if final:
+                            output_str += "Final Result:\n" + str(final) + "\n\n"
+                        errors = history.errors()
+                        if errors:
+                            output_str += "Errors:\n" + str(errors) + "\n\n"
+                        actions = history.model_actions()
+                        if actions:
+                            output_str += "Model Actions:\n" + str(actions) + "\n\n"
+                        thoughts = history.model_thoughts()
+                        if thoughts:
+                            output_str += "Thoughts:\n" + str(thoughts) + "\n\n"
+                        self.output.emit(output_str if output_str else "No result")
                     finally:
+                        self.output.emit("DEBUG: History = " + str(history))
+                        self.output.emit("DEBUG: Actions = " + str(actions))
+                        self.output.emit("DEBUG: Thoughts = " + str(thoughts))
+                        self.output.emit("DEBUG: Errors = " + str(errors))
                         loop.close()
                 start()
     
