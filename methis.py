@@ -6,11 +6,11 @@ import json
 import os
 
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
     QTextEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QLineEdit, QSplitter, QSplitterHandle
 )
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
-from PyQt5.QtGui import QPainter
+from PyQt5.QtGui import QPainter, QTextCursor
 
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
@@ -91,18 +91,47 @@ class Worker(QThread):
                     try:
                         history = loop.run_until_complete(self.run_agent(self.prompt))
                 
-                        final = history.final_result()
-                        if final:
-                            output_str += "Final Result:\n" + str(final) + "\n\n"
                         errors = history.errors()
                         if errors:
-                            output_str += "Errors:\n" + str(errors) + "\n\n"
+                            error_output = '<br>'.join(str(e) for e in errors)
+                            output_str += "<br><h2>Errors</h2><br><pre>" + error_output + "</pre><br><br>"
                         actions = history.model_actions()
                         if actions:
-                            output_str += "Model Actions:\n" + str(actions) + "\n\n"
+                            # Improve the output so it's easier to read for Actions.
+                            output_str += "<br><h2>Model Actions</h2><br>"
+                            for i, action in enumerate(actions, start=1):
+                                output_str += f"<h3 style='color:blue;'>Action {i}:</h3>"
+                                for key, value in action.items():
+                                    if isinstance(value, dict):
+                                        formatted_value = json.dumps(
+                                            value,
+                                            indent=2,
+                                            default=lambda o: o.__dict__ if hasattr(o, "__dict__") else str(o)
+                                        )
+                                        output_str += f"<b>{key}:</b> <pre>{formatted_value}</pre><br>"
+                                    else:
+                                        output_str += f"<b>{key}:</b> {value}<br>"
+                                output_str += "</div><br>"
+                        
                         thoughts = history.model_thoughts()
                         if thoughts:
-                            output_str += "Thoughts:\n" + str(thoughts) + "\n\n"
+                            # Improve the output so it's easier to read for Thoughts.
+                            output_str += "<br><h2>Thoughts</h2><br>"
+                            for i, thought in enumerate(thoughts, start=1):
+                                output_str += f"<div style='margin-left: 20px;'>"
+                                output_str += f"<span style='color:blue;'>Thought {i}:</span><br>"
+                                output_str += f"Evaluation Previous Goal: {thought.evaluation_previous_goal}<br>"
+                                output_str += f"<b>Memory:</b> {thought.memory}<br>"
+                                output_str += f"<b>Next Goal:</b> {thought.next_goal}<br>"
+                                output_str += "</div><br>"
+                                output_str += f"<div style='margin-left: 0px;'>"
+                        
+                        final = history.final_result()
+                        if final:
+                            output_str += "<br><h2>Final Result</h2><br>"
+                            output_str += "<div style='margin-left: 20px; color:purple;'>"
+                            output_str += f"{final}<br><br>"
+                            output_str += "</div><br>"
                         self.output.emit(output_str if output_str else "No result")
                     finally:
                         loop.close()
@@ -117,7 +146,7 @@ class Worker(QThread):
         self.agent = Agent(task=prompt, llm=llm, browser=browser)
         # When not capturing history, use the following line to run the agent.
         # await self.agent.run(max_steps=12)
-        history: AgentHistoryList = await self.agent.run(max_steps=6)
+        history: AgentHistoryList = await self.agent.run(max_steps=12)
 
         return history   # Return the history object
 
@@ -171,7 +200,9 @@ class MainWindow(QMainWindow):
         self.outputLabel = QLabel("Output")
         leftLayout.addWidget(self.outputLabel)
         
-        self.outputText = QTextEdit()
+        self.outputText = QTextBrowser()
+        self.outputText.setAcceptRichText(True)
+        self.outputText.setOpenExternalLinks(False)
         self.outputText.setReadOnly(True)
         leftLayout.addWidget(self.outputText)
         
@@ -409,6 +440,7 @@ class MainWindow(QMainWindow):
     def handleCancel(self):
         if self.worker and self.worker.isRunning() and hasattr(self.worker, 'agent'):
             self.worker.agent.stop()
+            # TODO: Add colour formatting and style to these messages.
             self.updateOutput("Execution cancelled.\n")
         else:
             self.updateOutput("No execution running.\n")
@@ -416,6 +448,7 @@ class MainWindow(QMainWindow):
     def handlePause(self):
         if self.worker and self.worker.isRunning() and hasattr(self.worker, 'agent'):
             self.worker.agent.pause()
+            # TODO: Add colour formatting and style to these messages.
             self.updateOutput("Execution paused.\n")
         else:
             self.updateOutput("No execution running.\n")
@@ -423,13 +456,15 @@ class MainWindow(QMainWindow):
     def handleResume(self):
         if self.worker and hasattr(self.worker, 'agent'):
             self.worker.agent.resume()
+            # TODO: Add colour formatting and style to these messages.
             self.updateOutput("Execution resumed.\n")
         else:
             self.updateOutput("No execution to resume.\n")
                        
     def updateOutput(self, text):
-        # Append received text to the outputText.
-        self.outputText.append(text)
+        # Insert received HTML text to the outputText.
+        self.outputText.insertHtml(text)
+        self.outputText.moveCursor(QTextCursor.End)
         
     def displayFinished(self, result):
         self.outputText.append(result)
