@@ -18,6 +18,8 @@ from langchain_ollama import ChatOllama
 from browser_use import Agent, AgentHistoryList, Browser, BrowserConfig
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import QSettings
+import threading
+import os
 
 def get_browser(headless, profile=False, connect=False, port="9123"):
     if connect:
@@ -72,7 +74,25 @@ class Worker(QThread):
         self.prompt = prompt
         
     def run(self):
-        # Redirect both stdout and stderr so all console output is piped to the text area.
+
+        # Set up an OS-level pipe to intercept subprocess output.
+        r_fd, w_fd = os.pipe()
+        # Save the original file descriptors so that they can be restored later.
+        original_stdout_fd = os.dup(1)
+        original_stderr_fd = os.dup(2)
+        # Redirect stdout and stderr (at OS level) to the write end of the pipe.
+        os.dup2(w_fd, 1)
+        os.dup2(w_fd, 2)
+
+        # Start a background thread that reads from the pipe and emits the text.
+        def pipe_reader():
+            with os.fdopen(r_fd) as pipe:
+                for line in iter(pipe.readline, ""):
+                    self.output.emit(line)
+        reader_thread = threading.Thread(target=pipe_reader, daemon=True)
+        reader_thread.start()
+
+        # Also redirect Python-level stdout and stderr using EmittingStream.
         stream = EmittingStream(self.output)
         with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(stream):
             try:
@@ -89,7 +109,7 @@ class Worker(QThread):
                     thoughts = None
                     errors = None
                     try:
-                        # Display a loading overlay in the outputText box via the output signal.
+                        # Display a loading overlay in the outputText box.
                         self.output.emit(
                             "<div style='position: absolute; z-index: 100; top: 0; left: 0; width: 100%; height: 100%; "
                             "background-color: rgba(0, 0, 0, 0.5); color: white; font-size: 24px; display: flex; "
@@ -97,13 +117,14 @@ class Worker(QThread):
                         )
                         history = loop.run_until_complete(self.run_agent(self.prompt))
                         
-                        # Clear the loading overlay by emitting an empty (or hidden) div.
-                        self.output.emit("<div style='display:none;'></div>")
+                        # Clear the loading overlay.
+                        self.output.emit("<div class='agent-loading-overlay hidden'></div>")
                         
                         errors = history.errors()
                         if errors:
                             error_output = '<br>'.join(str(e) for e in errors)
                             output_str += "<br><h2>Errors</h2><br><pre>" + error_output + "</pre><br><br>"
+                        
                         actions = history.model_actions()
                         if actions:
                             # Improve the output so it's easier to read for Actions.
@@ -147,8 +168,12 @@ class Worker(QThread):
                 start()
     
             except Exception as e:
-                self.output.emit("Exception Encountered:\n" + e)
-        # Emit finished signal with a final message.
+                self.output.emit("Exception Encountered:\n" + str(e))
+            finally:
+                # Clean up: close the write end and restore original file descriptors.
+                os.close(w_fd)
+                os.dup2(original_stdout_fd, 1)
+                os.dup2(original_stderr_fd, 2)
         self.finished.emit("Agent finished executing.\n")
         
     async def run_agent(self, prompt):
