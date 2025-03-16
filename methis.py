@@ -319,7 +319,7 @@ class MainWindow(QMainWindow):
         # sys.stderr = ConsoleOutput(self.updateOutput)
         
         self.saveButton.clicked.connect(self.saveHistory)
-        self.clearButton.clicked.connect(self.clearUnchecked)
+        self.clearButton.clicked.connect(self.clearChecked)
         self.clearAllButton.clicked.connect(self.clearAllCheckboxes)
         self.enableAllButton.clicked.connect(self.enableAllCheckboxes)
         
@@ -333,7 +333,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
         
-    def addHistoryEntry(self, prompt, checked=True):
+    def addHistoryEntry(self, prompt, checked=False):
         historyEntry = QWidget()
         entryLayout = QHBoxLayout()
         historyEntry.setLayout(entryLayout)
@@ -408,7 +408,7 @@ class MainWindow(QMainWindow):
                 num_predict=32000
             )    
             
-        self.addHistoryEntry(prompt, checked=True)
+        self.addHistoryEntry(prompt, checked=False)
         self.updatePersistedHistory()
         
         self.inputLine.clear()
@@ -463,11 +463,11 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 print("Error saving history:", e)
                 
-    def clearUnchecked(self):
+    def clearChecked(self):
         # Remove only entries with unchecked checkboxes.
         remaining_entries = []
         for entry in self.history_entries:
-            if not entry['checkbox'].isChecked():
+            if entry['checkbox'].isChecked():
                 entry['widget'].setParent(None)
             else:
                 remaining_entries.append(entry)
