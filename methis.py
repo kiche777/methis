@@ -15,7 +15,7 @@ from PyQt5.QtGui import QPainter
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
-from browser_use import Agent, Browser, BrowserConfig
+from browser_use import Agent, AgentHistoryList, Browser, BrowserConfig
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import QSettings
 
@@ -92,7 +92,6 @@ class Worker(QThread):
                         history = loop.run_until_complete(self.run_agent(self.prompt))
                 
                         final = history.final_result()
-                        self.output.emit("DEBUG: Final History = " + str(final))
                         if final:
                             output_str += "Final Result:\n" + str(final) + "\n\n"
                         errors = history.errors()
@@ -106,21 +105,21 @@ class Worker(QThread):
                             output_str += "Thoughts:\n" + str(thoughts) + "\n\n"
                         self.output.emit(output_str if output_str else "No result")
                     finally:
-                        self.output.emit("DEBUG: History = " + str(history))
-                        self.output.emit("DEBUG: Actions = " + str(actions))
-                        self.output.emit("DEBUG: Thoughts = " + str(thoughts))
-                        self.output.emit("DEBUG: Errors = " + str(errors))
                         loop.close()
                 start()
     
             except Exception as e:
-                self.output.emit("Execution cancelled.\n")
+                self.output.emit("Exception Encountered:\n" + e)
         # Emit finished signal with a final message.
         self.finished.emit("Agent finished executing.\n")
         
     async def run_agent(self, prompt):
         self.agent = Agent(task=prompt, llm=llm, browser=browser)
-        await self.agent.run(max_steps=12)
+        # When not capturing history, use the following line to run the agent.
+        # await self.agent.run(max_steps=12)
+        history: AgentHistoryList = await self.agent.run(max_steps=6)
+
+        return history   # Return the history object
 
 # Custom splitter handle to paint handle area green when a panel is collapsed.
 class CustomSplitterHandle(QSplitterHandle):
