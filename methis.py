@@ -305,19 +305,6 @@ class MainWindow(QMainWindow):
         self.clearAllButton = QPushButton("Clear All")
         self.enableAllButton = QPushButton("Enable All")
         
-        # Redirect console output to the outputText widget.
-        # class ConsoleOutput(io.StringIO):
-        #     def __init__(self, callback):
-        #         super().__init__()
-        #         self.callback = callback
-        #     def write(self, text):
-        #         if text:
-        #             self.callback(text)
-        #     def flush(self):
-        #         pass
-        # sys.stdout = ConsoleOutput(self.updateOutput)
-        # sys.stderr = ConsoleOutput(self.updateOutput)
-        
         self.saveButton.clicked.connect(self.saveHistory)
         self.clearButton.clicked.connect(self.clearChecked)
         self.clearAllButton.clicked.connect(self.clearAllCheckboxes)
