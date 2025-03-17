@@ -74,23 +74,27 @@ class Worker(QThread):
         self.prompt = prompt
         
     def run(self):
+        # TODO: Toggle True, False to enable console output displaying in outputText or to console. Currently doesn't display nice so set to False.
+        if getattr(self, 'capture_output', False):
+            # Set up an OS-level pipe to intercept subprocess output.
+            r_fd, w_fd = os.pipe()
+            # Save the original file descriptors so that they can be restored later.
+            original_stdout_fd = os.dup(1)
+            original_stderr_fd = os.dup(2)
+            # Redirect stdout and stderr (at OS level) to the write end of the pipe.
+            os.dup2(w_fd, 1)
+            os.dup2(w_fd, 2)
 
-        # Set up an OS-level pipe to intercept subprocess output.
-        r_fd, w_fd = os.pipe()
-        # Save the original file descriptors so that they can be restored later.
-        original_stdout_fd = os.dup(1)
-        original_stderr_fd = os.dup(2)
-        # Redirect stdout and stderr (at OS level) to the write end of the pipe.
-        os.dup2(w_fd, 1)
-        os.dup2(w_fd, 2)
-
-        # Start a background thread that reads from the pipe and emits the text.
-        def pipe_reader():
-            with os.fdopen(r_fd) as pipe:
-                for line in iter(pipe.readline, ""):
-                    self.output.emit(line)
-        reader_thread = threading.Thread(target=pipe_reader, daemon=True)
-        reader_thread.start()
+            # Start a background thread that reads from the pipe and emits the text.
+            def pipe_reader():
+                with os.fdopen(r_fd) as pipe:
+                    for line in iter(pipe.readline, ""):
+                        self.output.emit(line)
+            reader_thread = threading.Thread(target=pipe_reader, daemon=True)
+            reader_thread.start()
+        else:
+            # When capturing is disabled, do nothing or add alternative behavior.
+            pass
 
         # Also redirect Python-level stdout and stderr using EmittingStream.
         stream = EmittingStream(self.output)
@@ -116,10 +120,7 @@ class Worker(QThread):
                             "align-items: center; justify-content: center;'>Agent Task Running...</div>"
                         )
                         history = loop.run_until_complete(self.run_agent(self.prompt))
-                        
-                        # Clear the loading overlay.
-                        self.output.emit("<div class='agent-loading-overlay hidden'></div>")
-                        
+                                              
                         errors = history.errors()
                         if errors:
                             error_output = '<br>'.join(str(e) for e in errors)
