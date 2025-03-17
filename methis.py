@@ -130,7 +130,7 @@ class Worker(QThread):
                             "align-items: center; justify-content: center;'>Agent Task Running...</div>"
                         )
                         history = loop.run_until_complete(self.run_agent(self.prompt))
-                                              
+                                            
                         errors = history.errors()
                         if errors:
                             error_output = '<br>'.join(str(e) for e in errors)
@@ -174,6 +174,14 @@ class Worker(QThread):
                             output_str += f"{final}<br><br>"
                             output_str += "</div><br>"
                         self.output.emit(output_str if output_str else "No result")
+                        
+                        # Convert duration (in seconds) to mm:ss format and update executionTimeLabel.
+                        duration = history.total_duration_seconds()
+                        minutes, seconds = divmod(int(duration), 60)
+                        formatted_time = f"{minutes:02d}:{seconds:02d}"
+                        # Emit the formatted execution time so the main window can update its executionTimeLabel.
+                        self.output.emit(f"Execution Time: {formatted_time}")
+
                     finally:
                         # This doesn't appear to do anything... trying to resolve where after the first process is run, running a second time throws an exception.
                         loop.run_until_complete(loop.shutdown_asyncgens())
@@ -285,7 +293,7 @@ class MainWindow(QMainWindow):
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
-        # Save selection for next app load (convinience)
+        # Save selection for next app load (convinience) - Developer - Kiche777, Project/App Name - Methis
         settings = QSettings("kiche777", "Methis_App")
         saved_index = settings.value("selected_model_index", 0, int)
         self.modelCombo.setCurrentIndex(saved_index)
