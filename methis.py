@@ -383,9 +383,14 @@ class MainWindow(QMainWindow):
         rightWidget = QWidget()
         rightLayout = QVBoxLayout(rightWidget)
         
-        # Add a label at the top for the history
+        # Create a horizontal layout for the "Prompt History" label and "Run All" button.
+        headerLayout = QHBoxLayout()
         historyLabel = QLabel("Prompt History")
-        rightLayout.addWidget(historyLabel)
+        headerLayout.addWidget(historyLabel)
+        headerLayout.addStretch()  # add space between the label and the button
+        runAllButton = QPushButton("Run All")
+        headerLayout.addWidget(runAllButton)
+        rightLayout.addLayout(headerLayout)
         
         self.historyWidget = QWidget()
         self.historyLayout = QVBoxLayout(self.historyWidget)
@@ -395,11 +400,19 @@ class MainWindow(QMainWindow):
         self.historyScroll.setWidgetResizable(True)
         self.historyScroll.setWidget(self.historyWidget)
         rightLayout.addWidget(self.historyScroll)
-        # Buttons for Save, Clear, Clear All and Enable All Checkboxes.
+
+        # Buttons for Save, Clear, and Toggle All Checkboxes.
         buttonLayout = QHBoxLayout()
         self.saveButton = QPushButton("Save")
         self.clearButton = QPushButton("Clear")
         self.toggleAllButton = QPushButton("Toggle All")
+        
+        # Connect the "Run All" button to combine all history prompts and place them on the input line.
+        def run_all_history():
+            combined_text = "\n".join(entry['promptDisplay'].toPlainText() for entry in self.history_entries)
+            self.inputLine.setPlainText(combined_text)
+        
+        runAllButton.clicked.connect(run_all_history)
         
         self.saveButton.clicked.connect(self.saveHistory)
         self.clearButton.clicked.connect(self.clearChecked)
