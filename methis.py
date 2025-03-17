@@ -98,7 +98,17 @@ class Worker(QThread):
 
         # Also redirect Python-level stdout and stderr using EmittingStream.
         stream = EmittingStream(self.output)
-        with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(stream):
+        stream = EmittingStream(self.output)
+        # Use redirection only if capture_output is enabled.
+        # TODO: Toggle True/False depending if stdout should display in outputText 
+        #       - it doesn't look useful and best displayed in the console
+        if getattr(self, 'capture_output', False):
+            cm_out = contextlib.redirect_stdout(stream)
+            cm_err = contextlib.redirect_stderr(stream)
+        else:
+            cm_out = contextlib.nullcontext()
+            cm_err = contextlib.nullcontext()
+        with cm_out, cm_err:
             try:
                 # asyncio.run(self.run_agent(self.prompt))
                 
@@ -165,6 +175,8 @@ class Worker(QThread):
                             output_str += "</div><br>"
                         self.output.emit(output_str if output_str else "No result")
                     finally:
+                        # This doesn't appear to do anything... trying to resolve where after the first process is run, running a second time throws an exception.
+                        loop.run_until_complete(loop.shutdown_asyncgens())
                         loop.close()
                 start()
     
@@ -172,10 +184,11 @@ class Worker(QThread):
                 self.output.emit("Exception Encountered:\n" + str(e))
             finally:
                 # Clean up: close the write end and restore original file descriptors.
-                os.close(w_fd)
-                os.dup2(original_stdout_fd, 1)
-                os.dup2(original_stderr_fd, 2)
-        self.finished.emit("Agent finished executing.\n")
+                # TODO: Uncomment to pipe subprocess console output to outputText (Main text window).
+                # os.close(w_fd)
+                # os.dup2(original_stdout_fd, 1)
+                # os.dup2(original_stderr_fd, 2)
+                self.finished.emit("Agent finished executing.\n")
         
     async def run_agent(self, prompt):
         self.agent = Agent(task=prompt, llm=llm, browser=browser)
@@ -455,7 +468,7 @@ class MainWindow(QMainWindow):
             )
         else:
             llm=ChatOllama(
-                model="gwen2.5:14b",
+                model="gwen2.5",
                 temperature=0.7,
                 num_predict=32000
             )    
