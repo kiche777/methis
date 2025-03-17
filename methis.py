@@ -261,6 +261,17 @@ class MainWindow(QMainWindow):
         self.outputText.setOpenExternalLinks(False)
         self.outputText.setReadOnly(True)
         leftLayout.addWidget(self.outputText)
+
+        # Add Save and Clear buttons aligned to the right below outputText
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()  # Push buttons to the right
+        self.outputSaveButton = QPushButton("Save Output")
+        self.outputClearButton = QPushButton("Clear Output")
+        self.outputSaveButton.clicked.connect(self.handleOutputSave)
+        self.outputClearButton.clicked.connect(self.handleOutputClear)
+        buttonLayout.addWidget(self.outputSaveButton)
+        buttonLayout.addWidget(self.outputClearButton)
+        leftLayout.addLayout(buttonLayout)
         
         # Row 1: Input Line and Control buttons
         inputButtonLayout = QHBoxLayout()
@@ -522,6 +533,27 @@ class MainWindow(QMainWindow):
     def displayFinished(self, result):
         self.outputText.append(result)
         self.worker = None
+        
+    def handleOutputSave(self):
+        options = QFileDialog.Options()
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Output",
+            "",
+            "Rich Text Format (*.rtf);;HTML Files (*.html);;All Files (*)",
+            options=options
+        )
+        if filename:
+            if not (filename.endswith(".rtf") or filename.endswith(".html")):
+                filename += ".rtf"
+            try:
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write(self.outputText.toHtml())
+            except Exception as e:
+                print("Error saving output:", e)
+
+    def handleOutputClear(self):
+        self.outputText.clear()
         
     def saveHistory(self):
         filename, _ = QFileDialog.getSaveFileName(
