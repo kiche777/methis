@@ -380,18 +380,15 @@ class MainWindow(QMainWindow):
         buttonLayout = QHBoxLayout()
         self.saveButton = QPushButton("Save")
         self.clearButton = QPushButton("Clear")
-        self.clearAllButton = QPushButton("Clear All")
-        self.enableAllButton = QPushButton("Enable All")
+        self.toggleAllButton = QPushButton("Toggle All")
         
         self.saveButton.clicked.connect(self.saveHistory)
         self.clearButton.clicked.connect(self.clearChecked)
-        self.clearAllButton.clicked.connect(self.clearAllCheckboxes)
-        self.enableAllButton.clicked.connect(self.enableAllCheckboxes)
+        self.toggleAllButton.clicked.connect(self.toggleAllCheckboxes)
         
         buttonLayout.addWidget(self.saveButton)
         buttonLayout.addWidget(self.clearButton)
-        buttonLayout.addWidget(self.clearAllButton)
-        buttonLayout.addWidget(self.enableAllButton)
+        buttonLayout.addWidget(self.toggleAllButton)
         rightLayout.addLayout(buttonLayout)
         
         splitter.addWidget(rightWidget)
@@ -543,16 +540,11 @@ class MainWindow(QMainWindow):
         self.history_entries = remaining_entries
         self.updatePersistedHistory()
         
-    def clearAllCheckboxes(self):
-        # Uncheck all history entry checkboxes.
+    def toggleAllCheckboxes(self):
+        # If any checkbox is unchecked, then check all; otherwise, uncheck all.
+        new_state = any(not entry['checkbox'].isChecked() for entry in self.history_entries)
         for entry in self.history_entries:
-            entry['checkbox'].setChecked(False)
-        self.updatePersistedHistory()
-            
-    def enableAllCheckboxes(self):
-        # Check all history entry checkboxes.
-        for entry in self.history_entries:
-            entry['checkbox'].setChecked(True)
+            entry['checkbox'].setChecked(new_state)
         self.updatePersistedHistory()
         
 if __name__ == "__main__":
