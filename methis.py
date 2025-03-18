@@ -431,19 +431,15 @@ class MainWindow(QMainWindow):
         historyEntry = QWidget()
         entryLayout = QHBoxLayout()
         historyEntry.setLayout(entryLayout)
+        
         checkbox = QCheckBox()
         checkbox.setChecked(checked)  # Use passed argument for checkbox state
         promptDisplay = QTextEdit()
         promptDisplay.setPlainText(prompt)
-        promptDisplay.setReadOnly(True)
+        promptDisplay.setReadOnly(False)  # Now editable
         promptDisplay.setFixedHeight(50)
         promptDisplay.setAlignment(Qt.AlignTop)  # Align text to the top
-
-        # When the promptDisplay is double clicked, copy its text into the inputLine.
-        def onDoubleClick(_):
-            self.inputLine.setText(promptDisplay.toPlainText())
-        promptDisplay.mouseDoubleClickEvent = onDoubleClick
-
+        
         entryLayout.addWidget(checkbox)
         entryLayout.addWidget(promptDisplay)
         self.historyLayout.setAlignment(Qt.AlignTop)
@@ -456,6 +452,20 @@ class MainWindow(QMainWindow):
             'promptDisplay': promptDisplay
         }
         self.history_entries.append(record)
+        
+        # Override focusOutEvent so that when the user clicks away after editing,
+        # the app saves the current state and persists history.
+        originalFocusOut = promptDisplay.focusOutEvent
+        def newFocusOut(event):
+            originalFocusOut(event)
+            self.updatePersistedHistory()
+        promptDisplay.focusOutEvent = newFocusOut
+
+        # When the promptDisplay is double clicked, copy its text into the inputLine.
+        def onDoubleClick(event):
+            self.inputLine.setText(promptDisplay.toPlainText())
+        promptDisplay.mouseDoubleClickEvent = onDoubleClick
+        
         return record
 
     def updatePersistedHistory(self):
