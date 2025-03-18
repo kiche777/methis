@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import QSettings
 import threading
 import os
+from PyQt5.QtWidgets import QListWidget, QListWidgetItem
 
 def get_browser(headless, profile=False, connect=False, port="9123"):
     if connect:
@@ -392,14 +393,29 @@ class MainWindow(QMainWindow):
         headerLayout.addWidget(runAllButton)
         rightLayout.addLayout(headerLayout)
         
-        self.historyWidget = QWidget()
-        self.historyLayout = QVBoxLayout(self.historyWidget)
-        self.historyWidget.setLayout(self.historyLayout)
+        # Create the history list widget
+        self.historyList = QListWidget()
+        self.historyList.setDragDropMode(QListWidget.InternalMove)
         
-        self.historyScroll = QScrollArea()
-        self.historyScroll.setWidgetResizable(True)
-        self.historyScroll.setWidget(self.historyWidget)
-        rightLayout.addWidget(self.historyScroll)
+        # Define the history reordering handler
+        def onHistoryReordered():
+            # Rebuild the history_entries list to match the current visual order
+            reordered_entries = []
+            for i in range(self.historyList.count()):
+                item = self.historyList.item(i)
+                # Find the corresponding entry in the original list
+                for entry in self.history_entries:
+                    if entry['item'] == item:
+                        reordered_entries.append(entry)
+                        break
+            # Update the history entries with the new order
+            self.history_entries = reordered_entries
+            # Update persisted history
+            self.updatePersistedHistory()
+            
+        # Connect the model's rowsMoved signal to update history after drag and drop
+        self.historyList.model().rowsMoved.connect(onHistoryReordered)
+        rightLayout.addWidget(self.historyList)
 
         # Buttons for Save, Clear, and Toggle All Checkboxes.
         buttonLayout = QHBoxLayout()
@@ -428,9 +444,10 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 1)
         
     def addHistoryEntry(self, prompt, checked=False):
+        # Create a custom widget to contain the history entry
         historyEntry = QWidget()
-        entryLayout = QHBoxLayout()
-        historyEntry.setLayout(entryLayout)
+        entryLayout = QHBoxLayout(historyEntry)
+        entryLayout.setContentsMargins(2, 2, 2, 2)
         
         checkbox = QCheckBox()
         checkbox.setChecked(checked)  # Use passed argument for checkbox state
@@ -442,11 +459,17 @@ class MainWindow(QMainWindow):
         
         entryLayout.addWidget(checkbox)
         entryLayout.addWidget(promptDisplay)
-        self.historyLayout.setAlignment(Qt.AlignTop)
-        # Append the new entry to the bottom of the history entries.
-        self.historyLayout.addWidget(historyEntry)
+        
+        # Create a list widget item and set its size hint
+        item = QListWidgetItem()
+        item.setSizeHint(historyEntry.sizeHint())
+        
+        # Add the item to the list widget
+        self.historyList.addItem(item)
+        self.historyList.setItemWidget(item, historyEntry)
 
         record = {
+            'item': item,
             'widget': historyEntry,
             'checkbox': checkbox,
             'promptDisplay': promptDisplay
@@ -463,7 +486,7 @@ class MainWindow(QMainWindow):
 
         # When the promptDisplay is double clicked, copy its text into the inputLine.
         def onDoubleClick(event):
-            self.inputLine.setText(promptDisplay.toPlainText())
+            self.inputLine.setPlainText(promptDisplay.toPlainText())
         promptDisplay.mouseDoubleClickEvent = onDoubleClick
         
         return record
@@ -586,28 +609,34 @@ class MainWindow(QMainWindow):
             try:
                 with open(filename, "w", encoding="utf-8") as f:
                     for entry in self.history_entries:
-                        if entry['checkbox'].isChecked():
-                            # Get the text from the QTextEdit.
-                            f.write(entry['promptDisplay'].toPlainText() + "\n")
+                        f.write(entry['promptDisplay'].toPlainText() + "\n")
             except Exception as e:
                 print("Error saving history:", e)
                 
     def clearChecked(self):
-        # Remove only entries with unchecked checkboxes.
-        remaining_entries = []
-        for entry in self.history_entries:
+        # Remove only entries with checked checkboxes
+        # Iterate in reverse to avoid index shifting problems
+        for i in range(len(self.history_entries) - 1, -1, -1):
+            entry = self.history_entries[i]
             if entry['checkbox'].isChecked():
-                entry['widget'].setParent(None)
-            else:
-                remaining_entries.append(entry)
-        self.history_entries = remaining_entries
+                # Remove from the list widget
+                row = self.historyList.row(entry['item'])
+                self.historyList.takeItem(row)
+                # Remove from our tracking list
+                self.history_entries.pop(i)
+        
+        # Update the persisted history after modifications
         self.updatePersistedHistory()
         
     def toggleAllCheckboxes(self):
-        # If any checkbox is unchecked, then check all; otherwise, uncheck all.
-        new_state = any(not entry['checkbox'].isChecked() for entry in self.history_entries)
+        # If any checkbox is unchecked, check all; otherwise, uncheck all
+        any_unchecked = any(not entry['checkbox'].isChecked() for entry in self.history_entries)
+        
+        # Set all checkboxes to the new state
         for entry in self.history_entries:
-            entry['checkbox'].setChecked(new_state)
+            entry['checkbox'].setChecked(any_unchecked)
+        
+        # Update persisted history after changing checkbox states
         self.updatePersistedHistory()
         
 if __name__ == "__main__":
