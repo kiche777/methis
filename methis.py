@@ -530,7 +530,7 @@ class MainWindow(QMainWindow):
             )
         else:
             llm=ChatOllama(
-                model="gwen2.5",
+                model="qwen2.5:latest",
                 temperature=0.7,
                 num_predict=32000
             )    
