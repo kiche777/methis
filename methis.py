@@ -75,6 +75,9 @@ class Worker(QThread):
         self.prompt = prompt
         
     def run(self):
+        # Access maxStepsField from the Worker instance
+        max_steps_field = getattr(self, 'maxStepsField', None)
+        
         # TODO: Toggle True, False to enable console output displaying in outputText or to console. Currently doesn't display nice so set to False.
         if getattr(self, 'capture_output', False):
             # Set up an OS-level pipe to intercept subprocess output.
@@ -198,12 +201,15 @@ class Worker(QThread):
                 # os.dup2(original_stdout_fd, 1)
                 # os.dup2(original_stderr_fd, 2)
                 self.finished.emit("Agent finished executing.\n")
-        
+                    
     async def run_agent(self, prompt):
         self.agent = Agent(task=prompt, llm=llm, browser=browser, tool_calling_method="json_mode")
         # When not capturing history, use the following line to run the agent.
         # await self.agent.run(max_steps=12)
-        history: AgentHistoryList = await self.agent.run(max_steps=12)
+        # Access maxStepsField from the Worker instance
+        max_steps_field = getattr(self, 'maxStepsField', None)
+        max_steps = int(max_steps_field.text()) if max_steps_field else 12
+        history: AgentHistoryList = await self.agent.run(max_steps=max_steps)
 
         return history   # Return the history object
 
@@ -314,12 +320,31 @@ class MainWindow(QMainWindow):
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
         self.modelCombo.setCurrentIndex(saved_index)
         self.modelCombo.currentIndexChanged.connect(lambda index: settings.setValue("selected_model_index", index))
-        
+        advancedLayout.addWidget(self.modelCombo)
+
+        self.maxStepsLabel = QLabel("Max Steps")
+        self.maxStepsField = QLineEdit()
+        self.maxStepsField.setText("12")
+        self.maxStepsField.setMaxLength(3)
+        self.maxStepsField.setFixedWidth(40)
+        # Create a container for maxSteps controls
+        maxStepsContainer = QWidget()
+        maxStepsLayout = QHBoxLayout(maxStepsContainer)
+        maxStepsLayout.setContentsMargins(0, 0, 0, 0)
+        maxStepsLayout.setSpacing(2)
+        maxStepsLayout.addWidget(self.maxStepsLabel)
+        maxStepsLayout.addWidget(self.maxStepsField)
+        maxStepsLayout.addStretch()  # Add stretch to push widgets to the left  
+        # Add container right after headlessCheckBox
+        advancedLayout.addWidget(maxStepsContainer)
+
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
+        advancedLayout.addWidget(self.headlessCheckBox)
         
         self.profileCheckBox = QCheckBox("Use Browser Profile")
         self.profileCheckBox.setChecked(False)
+        advancedLayout.addWidget(self.profileCheckBox)
         
         self.connectExistingCheckBox = QCheckBox("Connect to Browser Instance")
         self.portLabel = QLabel("Port")
@@ -327,10 +352,6 @@ class MainWindow(QMainWindow):
         self.portField.setText("9123")
         self.portField.setMaxLength(5)
         self.portField.setFixedWidth(60)
-        
-        advancedLayout.addWidget(self.modelCombo)
-        advancedLayout.addWidget(self.headlessCheckBox)
-        advancedLayout.addWidget(self.profileCheckBox)
 
         # Define slot functions for checkbox logic
         def on_profile_toggled(checked):
@@ -543,13 +564,10 @@ class MainWindow(QMainWindow):
                 num_predict=128000
             )    
             
-        self.addHistoryEntry(prompt, checked=False)
-        self.updatePersistedHistory()
-        
-        self.inputLine.clear()
-        
         # Launch the agent code in a worker thread and connect its signals.
         self.worker = Worker(prompt)
+        # Pass maxStepsField to the Worker instance
+        self.worker.maxStepsField = self.maxStepsField
         # This is responsible for outputting messages in real time to outputText.
         self.worker.output.connect(self.updateOutput)
         self.worker.finished.connect(self.displayFinished)
