@@ -307,18 +307,20 @@ class MainWindow(QMainWindow):
         # Row 2: Advanced Settings
         advancedLayout = QHBoxLayout()
         
-        self.modelCombo = QComboBox()
-        self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
-        self.headlessCheckBox = QCheckBox("Headless")
-        self.headlessCheckBox.setChecked(False)
         # Save selection for next app load (convinience) - Developer - Kiche777, Project/App Name - Methis
         settings = QSettings("kiche777", "Methis_App")
         saved_index = settings.value("selected_model_index", 0, int)
+        self.modelCombo = QComboBox()
+        self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
         self.modelCombo.setCurrentIndex(saved_index)
         self.modelCombo.currentIndexChanged.connect(lambda index: settings.setValue("selected_model_index", index))
         
+        self.headlessCheckBox = QCheckBox("Headless")
+        self.headlessCheckBox.setChecked(False)
+        
         self.profileCheckBox = QCheckBox("Use Browser Profile")
         self.profileCheckBox.setChecked(False)
+        
         self.connectExistingCheckBox = QCheckBox("Connect to Browser Instance")
         self.portLabel = QLabel("Port")
         self.portField = QLineEdit()
