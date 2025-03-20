@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QLineEdit, QSplitter, QSplitterHandle
 )
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
-from PyQt5.QtGui import QPainter, QTextCursor
+from PyQt5.QtGui import QIcon, QPainter, QTextCursor
 
 # Import your agent and LLM
 from langchain_openai import ChatOpenAI
@@ -200,7 +200,7 @@ class Worker(QThread):
                 self.finished.emit("Agent finished executing.\n")
         
     async def run_agent(self, prompt):
-        self.agent = Agent(task=prompt, llm=llm, browser=browser)
+        self.agent = Agent(task=prompt, llm=llm, browser=browser, tool_calling_method="json_mode")
         # When not capturing history, use the following line to run the agent.
         # await self.agent.run(max_steps=12)
         history: AgentHistoryList = await self.agent.run(max_steps=12)
@@ -231,6 +231,12 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Methis")
         self.resize(1200, 600)
+        # Set the application icon
+        app_icon = os.path.join(os.path.dirname(os.path.abspath(__file__)), "methis.png")
+        if os.path.exists(app_icon):
+            self.setWindowIcon(QIcon(app_icon))
+        else:
+            print(f"Icon file not found: {app_icon}")
         self.history_entries = []  # Runtime history entries (widgets)
         self.historyFile = "history.json"  # Persistent file path
         self.worker = None
@@ -520,19 +526,19 @@ class MainWindow(QMainWindow):
             return
         
         selected_model = self.modelCombo.currentText()
-
         global llm, browser
         browser = get_browser(self.headlessCheckBox.isChecked(), self.profileCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())        
-        if selected_model != "ollama":
+        if "ollama" not in selected_model:
             llm = ChatOpenAI(
                 model=selected_model,
                 temperature=0.7
             )
         else:
             llm=ChatOllama(
-                model="qwen2.5:latest",
+                # model="qwen2.5:14b",
+                model="qwen2.5:32b-instruct-q4_K_M",
                 temperature=0.7,
-                num_predict=32000
+                num_predict=128000
             )    
             
         self.addHistoryEntry(prompt, checked=False)
