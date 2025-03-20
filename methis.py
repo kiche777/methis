@@ -564,6 +564,10 @@ class MainWindow(QMainWindow):
                 num_predict=128000
             )    
             
+        self.addHistoryEntry(prompt, checked=False)
+        self.updatePersistedHistory()
+        
+        self.inputLine.clear()
         # Launch the agent code in a worker thread and connect its signals.
         self.worker = Worker(prompt)
         # Pass maxStepsField to the Worker instance
