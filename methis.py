@@ -4,6 +4,7 @@ import io
 import contextlib
 import json
 import os
+from openai import OpenAI
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
@@ -78,6 +79,9 @@ class Worker(QThread):
         # Access maxStepsField from the Worker instance
         max_steps_field = getattr(self, 'maxStepsField', None)
         
+        # Initialize output_str as an instance variable
+        self.output_str = ""        
+        
         # TODO: Toggle True, False to enable console output displaying in outputText or to console. Currently doesn't display nice so set to False.
         if getattr(self, 'capture_output', False):
             # Set up an OS-level pipe to intercept subprocess output.
@@ -122,7 +126,6 @@ class Worker(QThread):
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     history = None
-                    output_str = ""
                     actions = None
                     thoughts = None
                     errors = None
@@ -138,14 +141,14 @@ class Worker(QThread):
                         errors = history.errors()
                         if errors:
                             error_output = '<br>'.join(str(e) for e in errors)
-                            output_str += "<br><h2>Errors</h2><br><pre>" + error_output + "</pre><br><br>"
+                            self.output_str += "<br><h2>Errors</h2><br><pre>" + error_output + "</pre><br><br>"
                         
                         actions = history.model_actions()
                         if actions:
                             # Improve the output so it's easier to read for Actions.
-                            output_str += "<br><h2>Model Actions</h2><br>"
+                            self.output_str += "<br><h2>Model Actions</h2><br>"
                             for i, action in enumerate(actions, start=1):
-                                output_str += f"<h3 style='color:blue;'>Action {i}:</h3>"
+                                self.output_str += f"<h3 style='color:blue;'>Action {i}:</h3>"
                                 for key, value in action.items():
                                     if isinstance(value, dict):
                                         formatted_value = json.dumps(
@@ -153,31 +156,31 @@ class Worker(QThread):
                                             indent=2,
                                             default=lambda o: o.__dict__ if hasattr(o, "__dict__") else str(o)
                                         )
-                                        output_str += f"<b>{key}:</b> <pre>{formatted_value}</pre><br>"
+                                        self.output_str += f"<b>{key}:</b> <pre>{formatted_value}</pre><br>"
                                     else:
-                                        output_str += f"<b>{key}:</b> {value}<br>"
-                                output_str += "</div><br>"
+                                        self.output_str += f"<b>{key}:</b> {value}<br>"
+                                self.output_str += "</div><br>"
                         
                         thoughts = history.model_thoughts()
                         if thoughts:
                             # Improve the output so it's easier to read for Thoughts.
-                            output_str += "<br><h2>Thoughts</h2><br>"
+                            self.output_str += "<br><h2>Thoughts</h2><br>"
                             for i, thought in enumerate(thoughts, start=1):
-                                output_str += f"<div style='margin-left: 20px;'>"
-                                output_str += f"<span style='color:blue;'>Thought {i}:</span><br>"
-                                output_str += f"Evaluation Previous Goal: {thought.evaluation_previous_goal}<br>"
-                                output_str += f"<b>Memory:</b> {thought.memory}<br>"
-                                output_str += f"<b>Next Goal:</b> {thought.next_goal}<br>"
-                                output_str += "</div><br>"
-                                output_str += f"<div style='margin-left: 0px;'>"
+                                self.output_str += f"<div style='margin-left: 20px;'>"
+                                self.output_str += f"<span style='color:blue;'>Thought {i}:</span><br>"
+                                self.output_str += f"Evaluation Previous Goal: {thought.evaluation_previous_goal}<br>"
+                                self.output_str += f"<b>Memory:</b> {thought.memory}<br>"
+                                self.output_str += f"<b>Next Goal:</b> {thought.next_goal}<br>"
+                                self.output_str += "</div><br>"
+                                self.output_str += f"<div style='margin-left: 0px;'>"
                         
                         final = history.final_result()
                         if final:
-                            output_str += "<br><h2>Final Result</h2><br>"
-                            output_str += "<div style='margin-left: 20px; color:purple;'>"
-                            output_str += f"{final}<br><br>"
-                            output_str += "</div><br>"
-                        self.output.emit(output_str if output_str else "No result")
+                            self.output_str += "<br><h2>Final Result</h2><br>"
+                            self.output_str += "<div style='margin-left: 20px; color:purple;'>"
+                            self.output_str += f"{final}<br><br>"
+                            self.output_str += "</div><br>"
+                        self.output.emit(self.output_str if self.output_str else "No result")
                         
                         # Convert duration (in seconds) to mm:ss format and update executionTimeLabel.
                         duration = history.total_duration_seconds()
@@ -185,7 +188,7 @@ class Worker(QThread):
                         formatted_time = f"{minutes:02d}:{seconds:02d}"
                         # Emit the formatted execution time so the main window can update its executionTimeLabel.
                         self.output.emit(f"Execution Time: {formatted_time}")
-
+                        
                     finally:
                         # This doesn't appear to do anything... trying to resolve where after the first process is run, running a second time throws an exception.
                         loop.run_until_complete(loop.shutdown_asyncgens())
@@ -200,7 +203,29 @@ class Worker(QThread):
                 # os.close(w_fd)
                 # os.dup2(original_stdout_fd, 1)
                 # os.dup2(original_stderr_fd, 2)
-                self.finished.emit("Agent finished executing.\n")
+                
+                try:
+                    # Define an async function to make the OpenAI API call
+                    async def get_completion():
+                        client = OpenAI()
+                        completion = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[
+                                {"role": "user", 
+                                 "content": "From the following content, did it meet the expectations of the prompt? Provide a response Failed, Inconlusive,Passing-With Questions,Conclusive Pass. The original prompt: " + self.prompt + " The content to evaluate: " + self.output_str}
+                            ]
+                        )
+                        # Extract just the message content and display it nicely
+                        message_content = completion.choices[0].message.content
+                        formatted_output = f"<br><br><div style='background-color: #f0f7ff; padding: 10px; border-left: 4px solid #0066cc; margin: 10px 0;'><<h3>AI Evaluation:</h3>{message_content}</div><br><br>"
+                        self.output.emit(formatted_output)
+                    
+                    # Run the async function
+                    asyncio.run(get_completion())
+                except Exception as e:
+                    self.output.emit(f"Error: {e}")  # Emit the error message to the outputText.
+                finally:                
+                    self.finished.emit("Agent finished executing.\n")
                     
     async def run_agent(self, prompt):
         self.agent = Agent(task=prompt, llm=llm, browser=browser, tool_calling_method="json_mode")
