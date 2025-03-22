@@ -205,23 +205,25 @@ class Worker(QThread):
                 # os.dup2(original_stderr_fd, 2)
                 
                 try:
-                    # Define an async function to make the OpenAI API call
-                    async def get_completion():
-                        client = OpenAI()
-                        completion = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=[
-                                {"role": "user", 
-                                 "content": "From the following content, did it meet the expectations of the prompt? Provide a response Failed, Inconlusive,Passing-With Questions,Conclusive Pass. The original prompt: " + self.prompt + " The content to evaluate: " + self.output_str}
-                            ]
-                        )
-                        # Extract just the message content and display it nicely
-                        message_content = completion.choices[0].message.content
-                        formatted_output = f"<br><br><div style='background-color: #f0f7ff; padding: 10px; border-left: 4px solid #0066cc; margin: 10px 0;'><<h3>AI Evaluation:</h3>{message_content}</div><br><br>"
-                        self.output.emit(formatted_output)
-                    
-                    # Run the async function
-                    asyncio.run(get_completion())
+                    # Only execute AI validation if the checkbox is checked
+                    if getattr(self, 'aiValidationCheckBox', None) and self.aiValidationCheckBox.isChecked():
+                        # Define an async function to make the OpenAI API call
+                        async def get_completion():
+                            client = OpenAI()
+                            completion = client.chat.completions.create(
+                                model="gpt-4o-mini",
+                                messages=[
+                                    {"role": "user", 
+                                     "content": "From the following content, did it meet the expectations of the prompt? Provide a response Failed, Inconlusive,Passing-With Questions,Conclusive Pass. The original prompt: " + self.prompt + " The content to evaluate: " + self.output_str}
+                                ]
+                            )
+                            # Extract just the message content and display it nicely
+                            message_content = completion.choices[0].message.content
+                            formatted_output = f"<br><br><div style='background-color: #f0f7ff; padding: 10px; border-left: 4px solid #0066cc; margin: 10px 0;'><h3>AI Evaluation:</h3>{message_content}</div><br><br>"
+                            self.output.emit(formatted_output)
+                        
+                        # Run the async function
+                        asyncio.run(get_completion())
                 except Exception as e:
                     self.output.emit(f"Error: {e}")  # Emit the error message to the outputText.
                 finally:                
@@ -362,6 +364,17 @@ class MainWindow(QMainWindow):
         maxStepsLayout.addStretch()  # Add stretch to push widgets to the left  
         # Add container right after headlessCheckBox
         advancedLayout.addWidget(maxStepsContainer)
+
+        # Create a container for AI validation checkbox
+        aiValidationContainer = QWidget()
+        aiValidationLayout = QHBoxLayout(aiValidationContainer)
+        aiValidationLayout.setContentsMargins(0, 0, 0, 0)
+        aiValidationLayout.setSpacing(2)
+        self.aiValidationCheckBox = QCheckBox("Enable AI Validation")
+        self.aiValidationCheckBox.setChecked(True)  # Default to checked
+        aiValidationLayout.addWidget(self.aiValidationCheckBox)
+        aiValidationLayout.addStretch()  # Add stretch to push checkbox to the left
+        advancedLayout.addWidget(aiValidationContainer)
 
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
@@ -597,6 +610,8 @@ class MainWindow(QMainWindow):
         self.worker = Worker(prompt)
         # Pass maxStepsField to the Worker instance
         self.worker.maxStepsField = self.maxStepsField
+        # Pass aiValidationCheckBox to the Worker instance
+        self.worker.aiValidationCheckBox = self.aiValidationCheckBox
         # This is responsible for outputting messages in real time to outputText.
         self.worker.output.connect(self.updateOutput)
         self.worker.finished.connect(self.displayFinished)
