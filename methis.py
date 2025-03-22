@@ -1,27 +1,27 @@
-import sys
+# Standard library imports
 import asyncio
-import io
 import contextlib
+import io
 import json
 import os
+import sys
+import threading
+
+# Third-party imports
 from openai import OpenAI
-
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
-    QTextEdit, QPushButton, QScrollArea, QCheckBox, QFileDialog, QComboBox, QLineEdit, QSplitter, QSplitterHandle
-)
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QSettings, QThread, Qt, pyqtSignal
 from PyQt5.QtGui import QIcon, QPainter, QTextCursor
+from PyQt5.QtWidgets import (
+    QApplication, QCheckBox, QComboBox, QFileDialog, QHBoxLayout, QLabel,
+    QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QPushButton, 
+    QScrollArea, QSplitter, QSplitterHandle, QTextBrowser, QTextEdit, 
+    QVBoxLayout, QWidget
+)
 
-# Import your agent and LLM
+# Local application imports
+from browser_use import Agent, AgentHistoryList, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
-from browser_use import Agent, AgentHistoryList, Browser, BrowserConfig
-from PyQt5.QtWidgets import QLabel
-from PyQt5.QtCore import QSettings
-import threading
-import os
-from PyQt5.QtWidgets import QListWidget, QListWidgetItem
 
 def get_browser(headless, profile=False, connect=False, port="9123"):
     if connect:
