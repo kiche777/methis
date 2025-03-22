@@ -211,6 +211,7 @@ class Worker(QThread):
                         async def get_completion():
                             client = OpenAI()
                             completion = client.chat.completions.create(
+                                # TODO: We might want to change the model, but this is good for now and cheaper.
                                 model="gpt-4o-mini",
                                 messages=[
                                     {"role": "user", 
@@ -396,7 +397,15 @@ class MainWindow(QMainWindow):
         # Notes text box (initially hidden)
         self.validationTextBox = QTextEdit()
         self.validationTextBox.setPlaceholderText("Add validation prompt here...")
-        self.validationTextBox.setText('From the following content, did it meet the expectations of the prompt? Provide a response Failed, Inconlusive,Passing-With Questions,Conclusive Pass.')
+        # Get saved validation text from settings, or use default if not found
+        saved_validation_text = settings.value("validation_prompt_text", 
+            'Does the result show the expectations of the prompt being met? Provide a response indicating Failed, Inconlusive, Passing with Questions, or Conclusive Pass.')
+        self.validationTextBox.setText(saved_validation_text)
+        
+        # Save validation text whenever it changes
+        self.validationTextBox.textChanged.connect(
+            lambda: settings.setValue("validation_prompt_text", self.validationTextBox.toPlainText())
+        )
         self.validationTextBox.setToolTip("Enter the prompt to evaluate the execution output.\nPrompt will also include action prompt and output content for evaluation.")
         self.validationTextBox.setFixedHeight(100)
         self.validationTextBox.hide()  # Initially hidden
