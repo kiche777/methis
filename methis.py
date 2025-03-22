@@ -196,7 +196,7 @@ class Worker(QThread):
                 start()
     
             except Exception as e:
-                self.output.emit("Exception Encountered:\n" + str(e))
+                self.output.emit("\nException Encountered:\n" + str(e))
             finally:
                 # Clean up: close the write end and restore original file descriptors.
                 # TODO: Uncomment to pipe subprocess console output to outputText (Main text window).
@@ -214,18 +214,18 @@ class Worker(QThread):
                                 model="gpt-4o-mini",
                                 messages=[
                                     {"role": "user", 
-                                     "content": "From the following content, did it meet the expectations of the prompt? Provide a response Failed, Inconlusive,Passing-With Questions,Conclusive Pass. The original prompt: " + self.prompt + " The content to evaluate: " + self.output_str}
+                                     "content": self.validationTextBox.toPlainText() + "\n\nThe agent prompt:\n" + self.prompt + "\n\nThe result content to evaluate:\n" + self.output_str}
                                 ]
                             )
                             # Extract just the message content and display it nicely
                             message_content = completion.choices[0].message.content
-                            formatted_output = f"<br><br><div style='background-color: #f0f7ff; padding: 10px; border-left: 4px solid #0066cc; margin: 10px 0;'><h3>AI Evaluation:</h3>{message_content}</div><br><br>"
+                            formatted_output = f"<br><br><div style='background-color: #f0f7ff; padding: 10px; border-left: 4px solid #0066cc; margin: 10px 0;'><h3>AI Validation:</h3>{message_content}</div><br><br>"
                             self.output.emit(formatted_output)
                         
                         # Run the async function
                         asyncio.run(get_completion())
                 except Exception as e:
-                    self.output.emit(f"Error: {e}")  # Emit the error message to the outputText.
+                    self.output.emit(f"\nError: {e}")  # Emit the error message to the outputText.
                 finally:                
                     self.finished.emit("Agent finished executing.\n")
                     
@@ -367,17 +367,54 @@ class MainWindow(QMainWindow):
         # Add container right after headlessCheckBox
         advancedLayout.addWidget(maxStepsContainer)
 
-        # Create a container for AI validation checkbox
+        # Create a container for AI validation checkbox with chevron and textbox
         aiValidationContainer = QWidget()
-        aiValidationLayout = QHBoxLayout(aiValidationContainer)
+        aiValidationLayout = QVBoxLayout(aiValidationContainer)
         aiValidationLayout.setContentsMargins(0, 0, 0, 0)
-        aiValidationLayout.setSpacing(2)
+        
+        # Header with checkbox and chevron
+        headerContainer = QWidget()
+        headerLayout = QHBoxLayout(headerContainer)
+        headerLayout.setContentsMargins(0, 0, 0, 0)
+        headerLayout.setSpacing(2)
+        
         self.aiValidationCheckBox = QCheckBox("Enable AI Validation")
         self.aiValidationCheckBox.setChecked(True)  # Default to checked
         self.aiValidationCheckBox.setToolTip("Enable AI validation to evaluate the execution output.")
-        aiValidationLayout.addWidget(self.aiValidationCheckBox)
-        aiValidationLayout.addStretch()  # Add stretch to push checkbox to the left
+        
+        self.notesChevron = QPushButton("▶")  # Right-pointing triangle as chevron
+        self.notesChevron.setFixedWidth(20)
+        self.notesChevron.setStyleSheet("border: none; text-align: left;")
+        
+        headerLayout.addWidget(self.aiValidationCheckBox)
+        headerLayout.addWidget(self.notesChevron)
+        headerLayout.addStretch()  # Add stretch to push elements to the left
+        
+        # Add the header container to the validation layout
+        aiValidationLayout.addWidget(headerContainer)
+        
+        # Notes text box (initially hidden)
+        self.validationTextBox = QTextEdit()
+        self.validationTextBox.setPlaceholderText("Add validation prompt here...")
+        self.validationTextBox.setText('From the following content, did it meet the expectations of the prompt? Provide a response Failed, Inconlusive,Passing-With Questions,Conclusive Pass.')
+        self.validationTextBox.setToolTip("Enter the prompt to evaluate the execution output.\nPrompt will also include action prompt and output content for evaluation.")
+        self.validationTextBox.setFixedHeight(100)
+        self.validationTextBox.hide()  # Initially hidden
+        aiValidationLayout.addWidget(self.validationTextBox)
+        
+        # Add to the advanced layout
         advancedLayout.addWidget(aiValidationContainer)
+        
+        # Connect chevron click to toggle notes visibility
+        def toggle_validationTextBox():
+            if self.validationTextBox.isHidden():
+                self.validationTextBox.show()
+                self.notesChevron.setText("▼")  # Down-pointing triangle
+            else:
+                self.validationTextBox.hide()
+                self.notesChevron.setText("▶")  # Right-pointing triangle
+        
+        self.notesChevron.clicked.connect(toggle_validationTextBox)
 
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
@@ -619,6 +656,8 @@ class MainWindow(QMainWindow):
         self.worker.maxStepsField = self.maxStepsField
         # Pass aiValidationCheckBox to the Worker instance
         self.worker.aiValidationCheckBox = self.aiValidationCheckBox
+        # Pass validationTextBox to the Worker instance
+        self.worker.validationTextBox = self.validationTextBox
         # This is responsible for outputting messages in real time to outputText.
         self.worker.output.connect(self.updateOutput)
         self.worker.finished.connect(self.displayFinished)
