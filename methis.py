@@ -394,6 +394,10 @@ class MainWindow(QMainWindow):
         # Add the header container to the validation layout
         aiValidationLayout.addWidget(headerContainer)
         
+        # Reduce vertical spacing in the layout
+        aiValidationLayout.setContentsMargins(0, 0, 0, 0)
+        aiValidationLayout.setSpacing(1)  # Minimal spacing between widgets
+        
         # Notes text box (initially hidden)
         self.validationTextBox = QTextEdit()
         self.validationTextBox.setPlaceholderText("Add validation prompt here...")
