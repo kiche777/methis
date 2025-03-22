@@ -347,6 +347,7 @@ class MainWindow(QMainWindow):
         self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
         self.modelCombo.setCurrentIndex(saved_index)
         self.modelCombo.currentIndexChanged.connect(lambda index: settings.setValue("selected_model_index", index))
+        self.modelCombo.setToolTip("Select the model to use for the agent.")
         advancedLayout.addWidget(self.modelCombo)
 
         self.maxStepsLabel = QLabel("Max Steps")
@@ -354,6 +355,7 @@ class MainWindow(QMainWindow):
         self.maxStepsField.setText("12")
         self.maxStepsField.setMaxLength(3)
         self.maxStepsField.setFixedWidth(40)
+        self.maxStepsField.setToolTip("Set the maximum number of steps for the agent to run.")
         # Create a container for maxSteps controls
         maxStepsContainer = QWidget()
         maxStepsLayout = QHBoxLayout(maxStepsContainer)
@@ -372,24 +374,31 @@ class MainWindow(QMainWindow):
         aiValidationLayout.setSpacing(2)
         self.aiValidationCheckBox = QCheckBox("Enable AI Validation")
         self.aiValidationCheckBox.setChecked(True)  # Default to checked
+        self.aiValidationCheckBox.setToolTip("Enable AI validation to evaluate the execution output.")
         aiValidationLayout.addWidget(self.aiValidationCheckBox)
         aiValidationLayout.addStretch()  # Add stretch to push checkbox to the left
         advancedLayout.addWidget(aiValidationContainer)
 
         self.headlessCheckBox = QCheckBox("Headless")
         self.headlessCheckBox.setChecked(False)
+        self.headlessCheckBox.setToolTip("Run the browser in headless mode.")
         advancedLayout.addWidget(self.headlessCheckBox)
         
         self.profileCheckBox = QCheckBox("Use Browser Profile")
         self.profileCheckBox.setChecked(False)
+        self.profileCheckBox.setToolTip("Use your existing browser profile with settings.\nThis helps bypass certain prompts and logins if remembered in your profile.")
         advancedLayout.addWidget(self.profileCheckBox)
         
         self.connectExistingCheckBox = QCheckBox("Connect to Browser Instance")
+        self.connectExistingCheckBox.setToolTip("Connect to an existing browser instance using the remote-debugging-port.")
         self.portLabel = QLabel("Port")
         self.portField = QLineEdit()
         self.portField.setText("9123")
         self.portField.setMaxLength(5)
         self.portField.setFixedWidth(60)
+        self.portField.setToolTip("Enter the remote-debugging-port.")
+        advancedLayout.addWidget(self.connectExistingCheckBox)
+        advancedLayout.addWidget(self.portField)
 
         # Define slot functions for checkbox logic
         def on_profile_toggled(checked):
@@ -425,11 +434,9 @@ class MainWindow(QMainWindow):
                     self.connectExistingCheckBox.blockSignals(False)
 
         # Connect signals
+        self.headlessCheckBox.toggled.connect(on_headless_toggled)
         self.profileCheckBox.toggled.connect(on_profile_toggled)
         self.connectExistingCheckBox.toggled.connect(on_connect_toggled)
-        self.headlessCheckBox.toggled.connect(on_headless_toggled)
-        advancedLayout.addWidget(self.connectExistingCheckBox)
-        advancedLayout.addWidget(self.portField)
         
         advancedContainer = QVBoxLayout()
         advancedLabel = QLabel("Advanced Settings")

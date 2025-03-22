@@ -5,7 +5,10 @@ __pycache__/
 
 # Misc project files
 history.json
+
+# Saved outputs from the app - txt for prompts, rtf for outputs
 *.txt
+*.rtf
 
 # C extensions
 *.so
