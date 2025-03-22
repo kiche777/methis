@@ -1,0 +1,36 @@
+Prompting Single Action and Goal:
+Go to Servus.ca website and confirm I'm on the Servus Credit Union website.
+
+Click on Calculators and confirm there is a list of calculators to choose
+
+Open the Credit Card payoff calculator and list the fields available
+
+Clear "Current Balance" and enter 5000.00
+Clear "Interest rate (APR)" and enter 19.5
+Clear "Payoff goal (in months)" and enter 12
+
+Click Calculate button and check how much monthly payment will be
+
+
+Combined Prompt:
+Go to Servus.ca website and confirm I'm on the Servus Credit Union website.
+Click on Calculators and confirm there is a list of calculators to choose
+Open the Credit Card payoff calculator and list the fields available
+Clear "Current Balance" and enter 5000.00
+Clear "Interest rate (APR)" and enter 19.5
+Clear "Payoff goal (in months)" and enter 12
+Click Calculate button and check how much monthly payment will be
+
+Consider numbered sequence approach (this may not matter or enhance reliability - to test):
+1. Go to Servus.ca website and confirm I'm on the Servus Credit Union website.
+2. Click on Calculators and confirm there is a list of calculators to choose
+3. Open the Credit Card payoff calculator and list the fields available
+4. Clear "Current Balance" and enter 5000.00
+5. Clear "Interest rate (APR)" and enter 19.5
+6. Clear "Payoff goal (in months)" and enter 12
+7. Click Calculate button and check how much monthly payment will be
+
+General Ask Prompt:
+Open Servus.ca and Look at all GICs
+Open RBC and look at all GICs
+Compare the list and tell me where I should bank
