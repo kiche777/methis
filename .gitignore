@@ -10,6 +10,9 @@ history.json
 *.txt
 *.rtf
 
+# Ignore Settings files
+*.settings
+
 # C extensions
 *.so
 
