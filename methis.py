@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
 
 # Local application imports
 from browser_use import Agent, AgentHistoryList, Browser, BrowserConfig
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_ollama import ChatOllama
 
 def get_browser(headless, profile=False, connect=False, port="9123"):
@@ -759,13 +759,12 @@ class MainWindow(QMainWindow):
             num_predict=128000
             )
         elif "azure" in selected_model.lower():
-            llm = ChatOpenAI(
-                model_name=self.deploymentNameField.text().strip(),
-                openai_api_key=self.apiKeyField.text().strip(),
-                azure_endpoint=self.endpointField.text().strip(),
-                azure_deployment=self.deploymentNameField.text().strip(),
-                api_version=self.apiVersionField.text().strip()
-                # temperature=0.7,
+            llm = AzureChatOpenAI(
+                model_name=self.deploymentNameField.text(),  
+                openai_api_key=self.apiKeyField.text(),
+                azure_endpoint=self.endpointField.text(),
+                deployment_name=self.deploymentNameField.text(),
+                api_version=self.apiVersionField.text()
             )
         else:
             llm = ChatOpenAI(
