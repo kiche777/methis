@@ -388,17 +388,7 @@ class MainWindow(QMainWindow):
         self.apiVersionField.setPlaceholderText("Enter API Version (e.g., 2023-05-15)")
         azureFieldsRow.addWidget(self.apiVersionLabel)
         azureFieldsRow.addWidget(self.apiVersionField)
-        
-        # First load saved Azure settings from file
-        self.loadAzureSettings()
-        
-        # Then connect the text changed signals to save settings when edited
-        # (To avoid triggering saves during initial loading)
-        self.apiKeyField.textChanged.connect(self.saveAzureSettings)
-        self.endpointField.textChanged.connect(self.saveAzureSettings)
-        self.deploymentNameField.textChanged.connect(self.saveAzureSettings)
-        self.apiVersionField.textChanged.connect(self.saveAzureSettings)
-        
+       
         # Add the row to the vertical layout
         azureFieldsLayout.addLayout(azureFieldsRow)
         
@@ -410,12 +400,8 @@ class MainWindow(QMainWindow):
         # Connect modelCombo to toggle visibility of Azure fields
         self.modelCombo.currentIndexChanged.connect(self.toggleAzureFields)
 
-        # Load saved Azure settings
-        self.apiKeyField.setText(settings.value("azure_api_key", ""))
-        self.endpointField.setText(settings.value("azure_endpoint", ""))
-        self.deploymentNameField.setText(settings.value("azure_deployment_name", ""))
-        self.apiVersionField.setText(settings.value("azure_api_version", ""))
-
+        # First load saved Azure settings from file
+        self.loadAzureSettings()
 
         def toggleAzureFields(self, index):
             if self.modelCombo.currentText().lower() == "azure-openai":
@@ -702,18 +688,36 @@ class MainWindow(QMainWindow):
                 json.dump(settings_data, f, indent=2)
         except Exception as e:
             print(f"Error saving Azure settings: {e}")
-        
+
     def loadAzureSettings(self):
         """Load Azure OpenAI settings from AzureOpenAI.settings file"""
         settings_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "AzureOpenAI.settings")
         if os.path.exists(settings_file):
             try:
+                # Temporarily disconnect signals to prevent overwriting during loading
+                self.apiKeyField.blockSignals(True)
+                self.endpointField.blockSignals(True)
+                self.deploymentNameField.blockSignals(True)
+                self.apiVersionField.blockSignals(True)
+                
                 with open(settings_file, "r", encoding="utf-8") as f:
                     settings_data = json.load(f)
                 self.apiKeyField.setText(settings_data.get("azure_api_key", ""))
                 self.endpointField.setText(settings_data.get("azure_endpoint", ""))
                 self.deploymentNameField.setText(settings_data.get("azure_deployment_name", ""))
                 self.apiVersionField.setText(settings_data.get("azure_api_version", ""))
+                
+                # Restore signals and connect to save function after loading
+                self.apiKeyField.blockSignals(False)
+                self.endpointField.blockSignals(False)
+                self.deploymentNameField.blockSignals(False)
+                self.apiVersionField.blockSignals(False)
+                
+                # Connect signals after loading is complete
+                self.apiKeyField.textChanged.connect(self.saveAzureSettings)
+                self.endpointField.textChanged.connect(self.saveAzureSettings)
+                self.deploymentNameField.textChanged.connect(self.saveAzureSettings)
+                self.apiVersionField.textChanged.connect(self.saveAzureSettings)
             except Exception as e:
                 print(f"Error loading Azure settings: {e}")
                 
