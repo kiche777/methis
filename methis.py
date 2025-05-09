@@ -277,6 +277,12 @@ class MainWindow(QMainWindow):
         self.initUI()
         self.loadPersistedHistory()
         
+    def toggleAzureFields(self, index):
+        if self.modelCombo.currentText().lower() == "azure-openai":
+            self.azureFieldsWidget.setVisible(True)
+        else:
+            self.azureFieldsWidget.setVisible(False)
+            
     def initUI(self):
         centralWidget = QWidget()
         self.setCentralWidget(centralWidget)
@@ -345,11 +351,78 @@ class MainWindow(QMainWindow):
         settings = QSettings("kiche777", "Methis_App")
         saved_index = settings.value("selected_model_index", 0, int)
         self.modelCombo = QComboBox()
-        self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama"])
+        self.modelCombo.addItems(["gpt-4o-mini", "gpt-4o", "ollama", "azure-openai"])
         self.modelCombo.setCurrentIndex(saved_index)
         self.modelCombo.currentIndexChanged.connect(lambda index: settings.setValue("selected_model_index", index))
         self.modelCombo.setToolTip("Select the model to use for the agent.")
         advancedLayout.addWidget(self.modelCombo)
+
+        # Azure OpenAI specific fields
+        self.azureFieldsWidget = QWidget()
+        azureFieldsLayout = QVBoxLayout(self.azureFieldsWidget)  # Changed to vertical layout
+        azureFieldsLayout.setContentsMargins(0, 0, 0, 0)
+
+        # Create a row for the Azure fields
+        azureFieldsRow = QHBoxLayout()
+        self.apiKeyLabel = QLabel("API Key:")
+        self.apiKeyField = QLineEdit()
+        self.apiKeyField.setPlaceholderText("Enter Azure API Key")
+        self.apiKeyField.setEchoMode(QLineEdit.Password)
+        azureFieldsRow.addWidget(self.apiKeyLabel)
+        azureFieldsRow.addWidget(self.apiKeyField)
+
+        self.endpointLabel = QLabel("Endpoint:")
+        self.endpointField = QLineEdit()
+        self.endpointField.setPlaceholderText("Enter Azure Endpoint")
+        azureFieldsRow.addWidget(self.endpointLabel)
+        azureFieldsRow.addWidget(self.endpointField)
+
+        self.deploymentNameLabel = QLabel("Deployment Name:")
+        self.deploymentNameField = QLineEdit()
+        self.deploymentNameField.setPlaceholderText("Enter Deployment Name")
+        azureFieldsRow.addWidget(self.deploymentNameLabel)
+        azureFieldsRow.addWidget(self.deploymentNameField)
+
+        self.apiVersionLabel = QLabel("API Version:")
+        self.apiVersionField = QLineEdit()
+        self.apiVersionField.setPlaceholderText("Enter API Version (e.g., 2023-05-15)")
+        azureFieldsRow.addWidget(self.apiVersionLabel)
+        azureFieldsRow.addWidget(self.apiVersionField)
+        
+        # First load saved Azure settings from file
+        self.loadAzureSettings()
+        
+        # Then connect the text changed signals to save settings when edited
+        # (To avoid triggering saves during initial loading)
+        self.apiKeyField.textChanged.connect(self.saveAzureSettings)
+        self.endpointField.textChanged.connect(self.saveAzureSettings)
+        self.deploymentNameField.textChanged.connect(self.saveAzureSettings)
+        self.apiVersionField.textChanged.connect(self.saveAzureSettings)
+        
+        # Add the row to the vertical layout
+        azureFieldsLayout.addLayout(azureFieldsRow)
+        
+        # Add the Azure fields widget after the advanced layout
+        # This places it on a new row below the dropdown
+        leftLayout.addWidget(self.azureFieldsWidget)  # Changed from advancedLayout to leftLayout
+        self.azureFieldsWidget.setVisible(self.modelCombo.currentText().lower() == "azure-openai")
+
+        # Connect modelCombo to toggle visibility of Azure fields
+        self.modelCombo.currentIndexChanged.connect(self.toggleAzureFields)
+
+        # Load saved Azure settings
+        self.apiKeyField.setText(settings.value("azure_api_key", ""))
+        self.endpointField.setText(settings.value("azure_endpoint", ""))
+        self.deploymentNameField.setText(settings.value("azure_deployment_name", ""))
+        self.apiVersionField.setText(settings.value("azure_api_version", ""))
+
+
+        def toggleAzureFields(self, index):
+            if self.modelCombo.currentText().lower() == "azure-openai":
+                self.azureFieldsWidget.setVisible(True)
+            else:
+                self.azureFieldsWidget.setVisible(False)
+
 
         self.maxStepsLabel = QLabel("Max Steps")
         self.maxStepsField = QLineEdit()
@@ -615,6 +688,35 @@ class MainWindow(QMainWindow):
         
         return record
 
+    def saveAzureSettings(self):
+        """Save Azure OpenAI settings to AzureOpenAI.settings file"""
+        settings_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "AzureOpenAI.settings")
+        settings_data = {
+            "azure_api_key": self.apiKeyField.text(),
+            "azure_endpoint": self.endpointField.text(),
+            "azure_deployment_name": self.deploymentNameField.text(),
+            "azure_api_version": self.apiVersionField.text()
+        }
+        try:
+            with open(settings_file, "w", encoding="utf-8") as f:
+                json.dump(settings_data, f, indent=2)
+        except Exception as e:
+            print(f"Error saving Azure settings: {e}")
+        
+    def loadAzureSettings(self):
+        """Load Azure OpenAI settings from AzureOpenAI.settings file"""
+        settings_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "AzureOpenAI.settings")
+        if os.path.exists(settings_file):
+            try:
+                with open(settings_file, "r", encoding="utf-8") as f:
+                    settings_data = json.load(f)
+                self.apiKeyField.setText(settings_data.get("azure_api_key", ""))
+                self.endpointField.setText(settings_data.get("azure_endpoint", ""))
+                self.deploymentNameField.setText(settings_data.get("azure_deployment_name", ""))
+                self.apiVersionField.setText(settings_data.get("azure_api_version", ""))
+            except Exception as e:
+                print(f"Error loading Azure settings: {e}")
+                
     def updatePersistedHistory(self):
         records = []
         for entry in self.history_entries:
@@ -646,18 +748,26 @@ class MainWindow(QMainWindow):
         selected_model = self.modelCombo.currentText()
         global llm, browser
         browser = get_browser(self.headlessCheckBox.isChecked(), self.profileCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())        
-        if "ollama" not in selected_model:
+        if "ollama" in selected_model:
+            llm = ChatOllama(
+            model="qwen2.5:32b-instruct-q4_K_M",
+            temperature=0.7,
+            num_predict=128000
+            )
+        elif "azure" in selected_model.lower():
             llm = ChatOpenAI(
-                model=selected_model,
-                temperature=0.7
+                model_name=self.deploymentNameField.text().strip(),
+                openai_api_key=self.apiKeyField.text().strip(),
+                azure_endpoint=self.endpointField.text().strip(),
+                azure_deployment=self.deploymentNameField.text().strip(),
+                api_version=self.apiVersionField.text().strip()
+                # temperature=0.7,
             )
         else:
-            llm=ChatOllama(
-                # model="qwen2.5:14b",
-                model="qwen2.5:32b-instruct-q4_K_M",
-                temperature=0.7,
-                num_predict=128000
-            )    
+            llm = ChatOpenAI(
+            model=selected_model,
+            temperature=0.7
+            )
             
         self.addHistoryEntry(prompt, checked=False)
         self.updatePersistedHistory()
