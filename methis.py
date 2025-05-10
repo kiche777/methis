@@ -23,7 +23,7 @@ from browser_use import Agent, AgentHistoryList, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_ollama import ChatOllama
 
-def get_browser(headless, profile=False, connect=False, port="9123"):
+def get_browser(headless=False, profile=False, connect=False, port="9123"):
     if connect:
         cdp_url = f"http://localhost:{port}"
         config = BrowserConfig(
@@ -36,7 +36,7 @@ def get_browser(headless, profile=False, connect=False, port="9123"):
         config = BrowserConfig(
             headless=headless,
             disable_security=False,
-            chrome_instance_path=chrome_instance_path
+            browser_binary_path=chrome_instance_path
         )
     else:
         config = BrowserConfig(
@@ -45,7 +45,7 @@ def get_browser(headless, profile=False, connect=False, port="9123"):
         )
     return Browser(config=config)
 
-browser = get_browser(False, True, False, "9123")
+# browser = get_browser(False, True, False, "9123")
 
 # Initialize the LLM (global)
 llm = ChatOpenAI(
@@ -439,9 +439,40 @@ class MainWindow(QMainWindow):
         headerLayout.setSpacing(2)
         
         self.aiValidationCheckBox = QCheckBox("Enable AI Validation")
-        self.aiValidationCheckBox.setChecked(True)  # Default to checked
-        self.aiValidationCheckBox.setToolTip("Enable AI validation to evaluate the execution output.")
         
+        # Set initial state based on the current selection of modelCombo
+        # Disable if "azure-openai" or "ollama" is selected.
+        selected_model_text = self.modelCombo.currentText().lower()
+        is_azure_selected = selected_model_text == "azure-openai"
+        is_ollama_selected = selected_model_text == "ollama"
+
+        if is_azure_selected or is_ollama_selected:
+            self.aiValidationCheckBox.setEnabled(False)
+            self.aiValidationCheckBox.setChecked(False)
+        else:
+            self.aiValidationCheckBox.setEnabled(True)
+            # Default to checked if not Azure or Ollama, consider saving/loading this state
+            saved_ai_validation_checked = settings.value("ai_validation_checked", True, type=bool)
+            self.aiValidationCheckBox.setChecked(saved_ai_validation_checked)
+
+        # Save checkbox state when it changes
+        self.aiValidationCheckBox.stateChanged.connect(
+            lambda state: settings.setValue("ai_validation_checked", self.aiValidationCheckBox.isChecked())
+        )
+
+        # Update checkbox enabled state when model changes
+        def update_ai_validation_enabled_state():
+            current_model_text = self.modelCombo.currentText().lower()
+            if current_model_text == "azure-openai" or current_model_text == "ollama":
+                self.aiValidationCheckBox.setEnabled(False)
+                self.aiValidationCheckBox.setChecked(False) # Also uncheck it
+            else:
+                self.aiValidationCheckBox.setEnabled(True)
+                # Optionally, restore the saved checked state or default to True
+                # self.aiValidationCheckBox.setChecked(settings.value("ai_validation_checked", True, type=bool))
+
+        self.modelCombo.currentIndexChanged.connect(update_ai_validation_enabled_state)
+        self.aiValidationCheckBox.setToolTip("Enable AI validation to evaluate the execution output. This option is disabled if 'azure-openai' is selected as the model.")
         self.notesChevron = QPushButton("▶")  # Right-pointing triangle as chevron
         self.notesChevron.setFixedWidth(20)
         self.notesChevron.setStyleSheet("border: none; text-align: left;")
