@@ -23,7 +23,9 @@ from browser_use import Agent, AgentHistoryList, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_ollama import ChatOllama
 
+# get_browser function to create a browser instance - Default parameters are shown
 def get_browser(headless=False, profile=False, connect=False, port="9123"):
+    chrome_instance_path = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
     if connect:
         cdp_url = f"http://localhost:{port}"
         config = BrowserConfig(
@@ -32,11 +34,15 @@ def get_browser(headless=False, profile=False, connect=False, port="9123"):
             cdp_url=cdp_url
         )
     elif profile:
-        chrome_instance_path = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
         config = BrowserConfig(
             headless=headless,
             disable_security=False,
-            browser_binary_path=chrome_instance_path
+            
+            # chrome_instance_path - is the old setting for Browser-Use 1.40
+            chrome_instance_path=chrome_instance_path
+            
+            # browser_binary_path - is the new setting for Browser-Use 1.45
+            # browser_binary_path=chrome_instance_path
         )
     else:
         config = BrowserConfig(
@@ -44,8 +50,6 @@ def get_browser(headless=False, profile=False, connect=False, port="9123"):
             disable_security=False
         )
     return Browser(config=config)
-
-# browser = get_browser(False, True, False, "9123")
 
 # Initialize the LLM (global)
 llm = ChatOpenAI(
@@ -364,13 +368,6 @@ class MainWindow(QMainWindow):
 
         # Create a row for the Azure fields
         azureFieldsRow = QHBoxLayout()
-        self.apiKeyLabel = QLabel("API Key:")
-        self.apiKeyField = QLineEdit()
-        self.apiKeyField.setPlaceholderText("Enter Azure API Key")
-        self.apiKeyField.setEchoMode(QLineEdit.Password)
-        azureFieldsRow.addWidget(self.apiKeyLabel)
-        azureFieldsRow.addWidget(self.apiKeyField)
-
         self.endpointLabel = QLabel("Endpoint:")
         self.endpointField = QLineEdit()
         self.endpointField.setPlaceholderText("Enter Azure Endpoint")
@@ -382,6 +379,12 @@ class MainWindow(QMainWindow):
         self.deploymentNameField.setPlaceholderText("Enter Deployment Name")
         azureFieldsRow.addWidget(self.deploymentNameLabel)
         azureFieldsRow.addWidget(self.deploymentNameField)
+
+        self.modelNameLabel = QLabel("Model Name:")
+        self.modelNameField = QLineEdit()
+        self.modelNameField.setPlaceholderText("Enter Model (e.g., gpt-4o-mini)")
+        azureFieldsRow.addWidget(self.modelNameLabel)
+        azureFieldsRow.addWidget(self.modelNameField)
 
         self.apiVersionLabel = QLabel("API Version:")
         self.apiVersionField = QLineEdit()
@@ -709,9 +712,9 @@ class MainWindow(QMainWindow):
         """Save Azure OpenAI settings to AzureOpenAI.settings file"""
         settings_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "AzureOpenAI.settings")
         settings_data = {
-            "azure_api_key": self.apiKeyField.text(),
             "azure_endpoint": self.endpointField.text(),
             "azure_deployment_name": self.deploymentNameField.text(),
+            "azure_mode_name": self.modelNameField.text(),
             "azure_api_version": self.apiVersionField.text()
         }
         try:
@@ -726,28 +729,28 @@ class MainWindow(QMainWindow):
         if os.path.exists(settings_file):
             try:
                 # Temporarily disconnect signals to prevent overwriting during loading
-                self.apiKeyField.blockSignals(True)
                 self.endpointField.blockSignals(True)
                 self.deploymentNameField.blockSignals(True)
+                self.modelNameField.blockSignals(True)
                 self.apiVersionField.blockSignals(True)
                 
                 with open(settings_file, "r", encoding="utf-8") as f:
                     settings_data = json.load(f)
-                self.apiKeyField.setText(settings_data.get("azure_api_key", ""))
                 self.endpointField.setText(settings_data.get("azure_endpoint", ""))
                 self.deploymentNameField.setText(settings_data.get("azure_deployment_name", ""))
+                self.modelNameField.setText(settings_data.get("azure_model_name", ""))
                 self.apiVersionField.setText(settings_data.get("azure_api_version", ""))
                 
                 # Restore signals and connect to save function after loading
-                self.apiKeyField.blockSignals(False)
                 self.endpointField.blockSignals(False)
                 self.deploymentNameField.blockSignals(False)
+                self.modelNameField.blockSignals(False)
                 self.apiVersionField.blockSignals(False)
                 
                 # Connect signals after loading is complete
-                self.apiKeyField.textChanged.connect(self.saveAzureSettings)
                 self.endpointField.textChanged.connect(self.saveAzureSettings)
                 self.deploymentNameField.textChanged.connect(self.saveAzureSettings)
+                self.modelNameField.textChanged.connect(self.saveAzureSettings)
                 self.apiVersionField.textChanged.connect(self.saveAzureSettings)
             except Exception as e:
                 print(f"Error loading Azure settings: {e}")
@@ -785,22 +788,22 @@ class MainWindow(QMainWindow):
         browser = get_browser(self.headlessCheckBox.isChecked(), self.profileCheckBox.isChecked(), self.connectExistingCheckBox.isChecked(), self.portField.text())        
         if "ollama" in selected_model:
             llm = ChatOllama(
-            model="qwen2.5:32b-instruct-q4_K_M",
-            temperature=0.7,
-            num_predict=128000
+                model="qwen2.5:32b-instruct-q4_K_M",
+                temperature=0.7,
+                num_predict=128000
             )
         elif "azure" in selected_model.lower():
             llm = AzureChatOpenAI(
-                model_name=self.deploymentNameField.text(),  
-                openai_api_key=self.apiKeyField.text(),
+                model_name=self.modelNameField.text(),  
+                openai_api_key=os.environ.get("AZURE_OPENAI_KEY"),
                 azure_endpoint=self.endpointField.text(),
                 deployment_name=self.deploymentNameField.text(),
                 api_version=self.apiVersionField.text()
             )
         else:
             llm = ChatOpenAI(
-            model=selected_model,
-            temperature=0.7
+                model=selected_model,
+                temperature=0.7
             )
             
         self.addHistoryEntry(prompt, checked=False)

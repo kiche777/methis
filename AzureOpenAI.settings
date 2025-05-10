@@ -1,6 +1,6 @@
 {
-  "azure_api_key": "",
   "azure_endpoint": "",
   "azure_deployment_name": "",
+  "azure_mode_name": "",
   "azure_api_version": ""
 }
